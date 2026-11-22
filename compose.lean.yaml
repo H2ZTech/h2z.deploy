@@ -21,6 +21,10 @@ services:
     profiles: !override [ai]
   h2z-api:
     profiles: !override [ai]
+  model-gateway:
+    profiles: !override [ai]
+  ai-config-init:
+    profiles: !override [ai]
   nodered-bridge:
     profiles: !override [ai]
   nodered:

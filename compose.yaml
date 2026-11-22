@@ -40,6 +40,16 @@ services:
     restart: 'no'
     command: [sh, -c, 'mkdir -p /cfg && chown root:20001 /cfg && chmod 2770 /cfg && find /cfg -type f -exec chgrp 20001 {} + -exec chmod 0660 {} +']
     volumes: ['./runtime/recorder:/cfg']
+  # AI model settings (IOC settings page -> h2z-api): the user's API key is stored in ./runtime/ai-config.
+  # Mode 2770 root:20001 like the recorder config: only containers in group 20001 can use it; ai-server does not mount it.
+  ai-config-init:
+    image: alpine:3.20
+    logging: *logging
+    user: '0:0'
+    network_mode: none
+    restart: 'no'
+    command: [sh, -c, 'mkdir -p /cfg && chown root:20001 /cfg && chmod 2770 /cfg && find /cfg -type f -exec chgrp 20001 {} + -exec chmod 0660 {} +']
+    volumes: ['./runtime/ai-config:/cfg']
   postgres:
     <<: *common
     image: ${POSTGRES_IMAGE:?run init}
@@ -401,6 +411,9 @@ services:
     image: ${AI_IMAGE}
     environment:
       <<: *ai-env
+      # Engine: OpenCode through the model gateway; provider, model and key come from the settings page (h2z-api /v1/ai-config).
+      H2Z_HARNESS: ${H2Z_HARNESS:-opencode}
+      H2Z_MODEL_BASE_URL: http://model-gateway:3200/v1
       H2Z_WEB_PORT: ${AI_WEB_PORT:-3096}
       H2Z_LOOP_DRY_RUN: ${H2Z_LOOP_DRY_RUN:-0}
       H2Z_NODERED_BRIDGE_URL: http://nodered-bridge:3090
@@ -425,7 +438,30 @@ services:
     depends_on:
       secrets-init: {condition: service_completed_successfully}
       nodered-bridge: {condition: service_healthy}
+      model-gateway: {condition: service_started}
     mem_limit: 1536m
+  # The only component that reaches the model provider. The user's API key lives only in ./runtime/ai-config (mounted
+  # read-only here, read-write in h2z-api) and is re-read on every request; ai-server gets a low-value internal token.
+  model-gateway:
+    <<: *common
+    image: ${AI_IMAGE}
+    command: [node, /app/src/gateway/server.mjs]
+    environment:
+      H2Z_GATEWAY_CONFIG: /app/config/model-gateway.anthropic.json
+      H2Z_AI_CONFIG_DIR: /var/lib/h2z-ai-config
+      H2Z_GATEWAY_STATE_FILE: /var/lib/h2z-gateway/state.json
+    volumes:
+      - ./runtime/ai-config:/var/lib/h2z-ai-config:ro
+    tmpfs:
+      - /var/lib/h2z-gateway:uid=10001,gid=10001,mode=0700
+    depends_on:
+      ai-config-init: {condition: service_completed_successfully}
+    healthcheck:
+      test: [CMD, node, -e, "fetch('http://127.0.0.1:3200/v1/status').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+    mem_limit: 256m
   h2z-api:
     <<: *common
     image: ${AI_IMAGE}
@@ -436,13 +472,21 @@ services:
       H2Z_API_PORT: '3083'
       H2Z_API_TOKEN_FILE: /run/h2z-api/token
       H2Z_NODERED_ADMIN_TOKEN_FILE: /run/h2z-nodered-admin/token
+      # AI model settings page: where the key is stored (rw here only), which providers this install offers,
+      # and whether the settings are locked.
+      H2Z_AI_CONFIG_DIR: /var/lib/h2z-ai-config
+      H2Z_AI_PROVIDERS: ${AI_PROVIDERS:-anthropic,deepseek}
+      H2Z_AI_CONFIG_LOCKED: ${AI_CONFIG_LOCKED:-0}
+      H2Z_MODEL_BASE_URL: http://model-gateway:3200/v1
     volumes:
+      - ./runtime/ai-config:/var/lib/h2z-ai-config
       - ./runtime/ai-shared:/work/shared
       - registry:/work/registry
       - ./secrets/h2z-api:/run/h2z-api:ro
       - ./secrets/nodered-admin:/run/h2z-nodered-admin:ro
     depends_on:
       secrets-init: {condition: service_completed_successfully}
+      ai-config-init: {condition: service_completed_successfully}
       ai-server: {condition: service_started}
     healthcheck:
       test: [CMD, node, -e, "fetch('http://127.0.0.1:3083/healthz').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]
