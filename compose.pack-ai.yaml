@@ -1,0 +1,10 @@
+# 扩展包 ai（AI 助手：ai-server、h2z-api、nodered-bridge、nodered）：和 compose.lean.yaml 一起用（见那个文件开头）。
+# 把 backend 接上 h2z-api：环境变量和 depends_on 与 compose.yaml 里的完全一样。
+# 装 / 卸这个包要重建 backend（环境变量变了），本地控制台会中断约 1 分钟。
+services:
+  backend:
+    depends_on:
+      h2z-api: {condition: service_healthy}
+    environment:
+      IOC_H2Z_URL: http://h2z-api:3083
+      IOC_H2Z_TOKEN_FILE: /run/h2z-api/token

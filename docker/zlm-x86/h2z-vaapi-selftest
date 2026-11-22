@@ -1,0 +1,11 @@
+#!/bin/sh
+# 现场自检：docker exec h2z-zlm-1 h2z-vaapi-selftest
+# 用样片（1 秒 640x360 H.265）在这个容器里真跑一遍：显卡硬解 H.265 → 缩放 → 显卡硬编 H.264，输出丢掉。
+# 退出码：0 = 通；3 = 容器里没有显卡设备；4 = ffmpeg 失败（原因打在输出里）。
+# 参数必须和 h2z.security scripts/zlm-config.mjs 里的 cmd_h264_vaapi_selftest 一致（scripts/zlm-config.test.mjs 核对）。
+DEV=${H2Z_VAAPI_DEVICE:-/dev/dri/renderD128}
+CLIP=${H2Z_VAAPI_CLIP:-/usr/share/h2z/selftest-hevc.mp4}
+[ -e "$DEV" ] || { echo "FAIL no-device: 容器里没有 $DEV（没映射显卡，或这台机器没有核显）"; exit 3; }
+out=$(ffmpeg -hide_banner -loglevel error -hwaccel vaapi -hwaccel_device "$DEV" -hwaccel_output_format vaapi -i "$CLIP" -an -vf scale_vaapi=format=nv12 -c:v h264_vaapi -qp 28 -bf 0 -g 25 -t 1 -f null - 2>&1) \
+  || { echo "FAIL ffmpeg: $(printf '%s' "$out" | tail -n 3)"; exit 4; }
+echo "OK vaapi: H.265 硬解 + H.264 硬编通过（$DEV）"

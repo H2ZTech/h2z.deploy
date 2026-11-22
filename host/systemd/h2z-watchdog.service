@@ -1,0 +1,12 @@
+# H2Z 板子看门狗（host/watchdog.sh）：查网络、Tailscale、我们的容器、Docker、磁盘，限频地自动恢复，
+# 结果写 /var/lib/h2z/watchdog/status.json 给后端发告警。由 h2z-watchdog.timer 每分钟触发。
+[Unit]
+Description=H2Z board watchdog
+After=network-online.target docker.service
+
+[Service]
+Type=oneshot
+EnvironmentFile=-/etc/h2z/watchdog.env
+ExecStart=/bin/sh /usr/local/lib/h2z/watchdog.sh
+TimeoutStartSec=170
+Nice=5

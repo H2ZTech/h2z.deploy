@@ -1,0 +1,21 @@
+# Rendered by host/setup-host-network.sh -> /etc/h2z/h2z-maint.nft. Do not edit the rendered copy.
+table inet h2z_maint
+delete table inet h2z_maint
+table inet h2z_maint {
+  chain input {
+    type filter hook input priority filter - 5; policy accept;
+    iifname "@AP_IF@" ct state established,related accept
+    iifname "@AP_IF@" udp dport 67 accept
+    iifname "@AP_IF@" icmp type echo-request accept
+    iifname "@AP_IF@" tcp dport 22 accept
+    iifname "@AP_IF@" counter drop
+  }
+  chain forward {
+    type filter hook forward priority filter - 5; policy accept;
+    # Published IOC / DSH ports reach their containers through Docker's DNAT.
+    iifname "@AP_IF@" ct status dnat ct original proto-dst { @AP_PORTS@ } accept
+    iifname "@AP_IF@" counter drop
+    oifname "@AP_IF@" ct state established,related accept
+    oifname "@AP_IF@" counter drop
+  }
+}

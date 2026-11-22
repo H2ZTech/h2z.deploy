@@ -1,0 +1,8 @@
+authentication = [{
+  mechanism = "password_based"
+  backend = "built_in_database"
+  user_id_type = "username"
+  bootstrap_file = "/opt/emqx/data/bootstrap-users.csv"
+  bootstrap_type = "plain"
+  password_hash_algorithm { name = "sha256", salt_position = "suffix" }
+}]

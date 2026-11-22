@@ -1,0 +1,16 @@
+# Isolates the maintenance hotspot: hotspot clients reach only SSH and the published IOC / DSH ports,
+# nothing is routed between the hotspot and the site LAN, and containers (exploration) cannot open
+# connections into the hotspot network. Rules: /etc/h2z/h2z-maint.nft (rendered from host/templates).
+[Unit]
+Description=H2Z maintenance hotspot firewall
+Before=h2z-maint-ap.service
+After=network-pre.target
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+ExecStart=/usr/sbin/nft -f /etc/h2z/h2z-maint.nft
+ExecStop=-/usr/sbin/nft delete table inet h2z_maint
+
+[Install]
+WantedBy=multi-user.target

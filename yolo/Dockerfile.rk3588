@@ -1,0 +1,13 @@
+# A board-approved Debian/Python3.11 ARM64 base must include ffmpeg-rockchip,
+# scale_rkrga, matching librknnrt and RKNN Toolkit Lite2. Provided by your board build.
+ARG RKNN_BASE
+FROM ${RKNN_BASE}
+WORKDIR /app
+COPY requirements.txt ./
+RUN pip install --no-cache-dir -r requirements.txt && \
+    python -c 'from rknnlite.api import RKNNLite' && \
+    ffmpeg -decoders 2>/dev/null | grep -q h264_rkmpp && \
+    ffmpeg -filters 2>/dev/null | grep -q scale_rkrga
+COPY *.py ./
+RUN mkdir -p /data
+CMD ["python", "-u", "worker.py"]

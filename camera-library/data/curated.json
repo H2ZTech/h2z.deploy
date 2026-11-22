@@ -1,0 +1,362 @@
+{
+  "schema": 1,
+  "_doc": "我们自己维护的一层（手写，导入器不会碰）：识别词、锁定的变体、现场实测证据、旧代码里的兜底写法、ONVIF 默认端口。规则见 ../README.md。",
+  "onvifPorts": [
+    80,
+    8000,
+    8080,
+    2020
+  ],
+  "vendors": {
+    "tapo": {
+      "aliases": [
+        "tapo",
+        "tp-link",
+        "tplink"
+      ],
+      "modelPatterns": [
+        " (?:tc\\d{2}[a-z]?|c[1-9]\\d{2}[a-z]{0,2}) "
+      ],
+      "matchMode": "substring",
+      "autoFill": true,
+      "pin": "tapo.1",
+      "onvifPorts": [
+        2020
+      ],
+      "requires": [
+        "camera-account"
+      ],
+      "note": "与库化之前 camera-credentials.streamPaths 的写法逐字一致（行为不变）。只给型号（C210 / C510W / TC70…，真机上 ONVIF 常不带厂家）也按 Tapo 认，见 modelPatterns（2026-11-04 真机）。TP-Link 官方 FAQ：要先在 Tapo App 里建「摄像头账号」（6–32 位），不是云账号。",
+      "quirks": [
+        {
+          "id": "stream-limit",
+          "note": "设备同时能拉的流数量有限：云存储（Tapo Care）、NVR、microSD 录像不能同时开。现场有 Tapo 的主流 /stream1 在 PLAY 阶段被设备断开（见 docs/CAMERA-BINDING-2026-10-06.md），可能与此有关，待验证。",
+          "evidence": {
+            "type": "vendor-doc",
+            "url": "https://www.tp-link.com/nl-be/support/faq/2680",
+            "title": "TP-Link FAQ 2680：用 RTSP/ONVIF 查看 Tapo 摄像头"
+          }
+        }
+      ]
+    },
+    "hikvision": {
+      "aliases": [
+        "hikvision",
+        "海康"
+      ],
+      "matchMode": "substring",
+      "autoFill": true,
+      "pin": "hikvision.1",
+      "onvifPorts": [
+        80
+      ],
+      "note": "与库化之前 camera-credentials.streamPaths / rtsp-probe 的海康默认写法逐字一致（行为不变）。",
+      "factory": {
+        "accounts": [
+          {
+            "username": "admin",
+            "password": "12345",
+            "scope": "老固件（IPC V5.3.0 / NVR V3.3.0 之前）；之后的固件没有默认口令，要先激活",
+            "status": "candidate",
+            "evidence": [
+              {
+                "type": "mirror-doc",
+                "url": "https://securitycamcenter.com/?p=3907",
+                "title": "Hikvision 默认账号（经销商技术站）",
+                "date": "2026-11-08"
+              }
+            ]
+          }
+        ],
+        "activation": {
+          "required": "new-firmware",
+          "methods": [
+            "web",
+            "sadp",
+            "client"
+          ],
+          "minPasswordLength": 8,
+          "status": "documented",
+          "note": "未激活设备没有默认口令，要先设管理员口令。SADP 搜索结果里 Activated 字段可判断。通过 ISAPI 激活（PUT /ISAPI/System/activate）网上有人试过返回 400，没有真机证据，先不依赖",
+          "evidence": [
+            {
+              "type": "vendor-doc",
+              "url": "https://us-legacy.hikvision.com/sites/default/files/how-to/pnpcameraactivationfrompnpnvrfna01272017.pdf",
+              "title": "海康美国：没有默认口令，设备激活前为 inactive",
+              "date": "2026-11-08"
+            }
+          ],
+          "recipes": [
+            {
+              "id": "hikvision.sadp-udp",
+              "method": "sadp",
+              "status": "candidate",
+              "note": "UDP 广播 239.255.255.250:37020，XML 报文 <Probe>/<ProbeMatch>，Uuid 对应请求响应，MAC 定位设备。流程：inquiry（查 Activated 状态）→ exchangecode（我方发 RSA-1024 公钥，设备回一段用该公钥加密的密文，建立会话密钥）→ activate（发 <Password> 字段，内容是用会话密钥对称加密后的新密码，base64）。抓包抓到完整真实报文（见 evidence），但「设备回的密文具体怎么用、对称加密算法是什么」还没有自己实现验证过，所以先标 candidate，不自动跑，要人确认一次。 update（改 IP）用的是另一套认证字段（64 字节，疑似 SHA-512 摘要）。host-agent 已经实现了一版候选代码：按 MAC 查 inquiry 拿 Salt，依次试 4 种 salt/password/username 拼接顺序的摘要公式，命中 Result=success 的就用——但 4 个公式本身还没有真机验证过，所以 activate + 自动改 IP 这条完整路径仍然是 candidate，要真机测试通过才能固化。",
+              "evidence": [
+                {
+                  "type": "device",
+                  "date": "2026-11-21",
+                  "model": "DS-2CD3T56WDV3-I3",
+                  "result": "用官方「海康交付助手」工具对一台出厂未激活的真机（192.168.1.64）完整走一遍激活流程并抓包，还原出 inquiry/exchangecode/activate 三步的完整 XML 报文；激活成功后 inquiry 的 Activated 字段变为 true",
+                  "ref": "h2z.security/docs/HIKVISION-SADP-ACTIVATE-2026-11-21.md"
+                },
+                {
+                  "type": "device",
+                  "date": "2026-11-21",
+                  "model": "DS-2CD3T56WDV3-I3",
+                  "result": "第二次抓包：同一设备再走一遍 activate + setsecurityquestion + update（修改网络参数）。发现 update 的 <Password bSalt=\"true\"> 字段是 64 字节，编码方式和 activate 的 32 字节字段明显不同（疑似摘要认证，待验证）；另外两轮 exchangecode 后 activate/setsecurityquestion 的密码密文逐字节相同，和「会话密钥加密」的推断矛盾，标记为未解之谜，需要写代码实测才能搞清楚",
+                  "ref": "h2z.security/docs/HIKVISION-SADP-ACTIVATE-2026-11-21.md"
+                }
+              ]
+            }
+          ]
+        },
+        "lock": {
+          "maxAttempts": 7,
+          "lockMinutes": 30,
+          "status": "candidate",
+          "note": "手册：admin 允许 7 次输错、其他账号 5 次；也有现场报告 5 次就锁。锁定约 30 分钟或重启设备。Network Optix 的做法是最多试 3 次",
+          "evidence": [
+            {
+              "type": "mirror-doc",
+              "url": "https://www.scribd.com/document/441572196/Hikvision-manual-pdf",
+              "title": "海康快速指南转载：登录锁定规则（admin 7 次，其他 5 次）",
+              "date": "2026-11-08"
+            },
+            {
+              "type": "mirror-doc",
+              "url": "https://support.networkoptix.com/hc/en-us/community/posts/360000008307-Ability-to-set-default-camera-password-for-autodiscover",
+              "title": "Network Optix 社区：新设备需先激活，输错数次锁 30 分钟",
+              "date": "2026-11-08"
+            }
+          ]
+        },
+        "factoryIps": [
+          "192.168.1.64",
+          "192.0.0.64"
+        ]
+      }
+    },
+    "dahua": {
+      "aliases": [
+        "dahua",
+        "大华"
+      ],
+      "matchMode": "substring",
+      "autoFill": true,
+      "pin": "dahua.1",
+      "onvifPorts": [
+        80
+      ],
+      "note": "与库化之前 camera-credentials.streamPaths 的大华写法逐字一致（行为不变）。"
+    },
+    "uniview": {
+      "aliases": [
+        "uniview",
+        "unv",
+        "uniarch",
+        "宇视"
+      ],
+      "matchMode": "word",
+      "factory": {
+        "accounts": [
+          {
+            "username": "admin",
+            "password": "123456",
+            "scope": "老固件 / 多数宇视产品；新固件首次登录要强制改口令或先激活",
+            "status": "documented",
+            "evidence": [
+              {
+                "type": "vendor-doc",
+                "url": "https://global.uniview.com/res/202504/30/20250430_1958213_How%20to%20Retrieve%20a%20Uniview%20Camera%27s%20Password_974041_168459_0.pdf",
+                "title": "宇视官方 FAQ：多数宇视产品账号 admin / 密码 123456",
+                "date": "2026-11-08"
+              }
+            ]
+          },
+          {
+            "username": "admin",
+            "password": "admin",
+            "scope": "部分录像机 / 个别摄像头",
+            "status": "candidate",
+            "evidence": [
+              {
+                "type": "mirror-doc",
+                "url": "https://securitycamcenter.com/?p=4031",
+                "title": "Uniview 默认口令（经销商技术站）：admin/123456 或 admin/admin；最新一代无默认口令",
+                "date": "2026-11-08"
+              }
+            ]
+          }
+        ],
+        "activation": {
+          "required": "new-firmware",
+          "methods": [
+            "web",
+            "eztools"
+          ],
+          "minPasswordLength": 8,
+          "status": "candidate",
+          "note": "最新一代设备没有默认口令，首次要自己设；经销商文章说 2021 年前后的固件起强制，来源不是厂家，激活的具体接口没有查到",
+          "evidence": [
+            {
+              "type": "mirror-doc",
+              "url": "https://www.xlrsecurity.com/uniview-tutorials/uniview-cameras-nvr-default-username-and-password",
+              "title": "经销商：新固件首次登录强制改口令，约 2021 年起",
+              "date": "2026-11-08"
+            }
+          ]
+        },
+        "lock": {
+          "maxAttempts": 6,
+          "lockMinutes": 10,
+          "status": "candidate",
+          "note": "Uniarch 摄像头手册：连续输错 6 次自动锁 10 分钟（手册转载页）",
+          "evidence": [
+            {
+              "type": "mirror-doc",
+              "url": "https://manualsnet.com/uniview/uniarch",
+              "title": "Uniarch 手册转载：连续失败 6 次锁 10 分钟",
+              "date": "2026-11-08"
+            }
+          ]
+        },
+        "factoryIps": [
+          "192.168.1.13"
+        ]
+      }
+    },
+    "tvt": {
+      "aliases": [
+        "tvt",
+        "tvt digital"
+      ],
+      "matchMode": "word",
+      "factory": {
+        "accounts": [
+          {
+            "username": "admin",
+            "password": "123456",
+            "scope": "多款 TD 系列摄像头快速入门手册写明；新固件是否要求激活不确定",
+            "status": "candidate",
+            "evidence": [
+              {
+                "type": "mirror-doc",
+                "url": "https://manualshive.com/en/manual/tvt/td-9422s3/1183679?page=2",
+                "title": "TVT TD-9422S3 快速入门手册转载：默认 admin / 123456",
+                "date": "2026-11-08"
+              }
+            ]
+          }
+        ],
+        "activation": {
+          "required": "unknown",
+          "status": "candidate",
+          "note": "没有查到可靠资料，需要真机核实"
+        },
+        "lock": {
+          "maxAttempts": null,
+          "lockMinutes": null,
+          "status": "candidate",
+          "note": "没有查到锁定规则，后端按保守默认（每台最多试 2 次）处理，真机测出阈值后再填"
+        },
+        "factoryIps": []
+      }
+    },
+    "h3c": {
+      "name": "H3C（新华三）",
+      "aliases": [
+        "h3c",
+        "新华三",
+        "华三"
+      ],
+      "matchMode": "substring",
+      "factory": {
+        "accounts": [],
+        "activation": {
+          "required": "unknown",
+          "status": "candidate",
+          "note": "没有查到华三摄像头的出厂账号、激活和锁定资料（搜到的只有华三无线设备），需要手册或真机核实"
+        },
+        "lock": {
+          "maxAttempts": null,
+          "lockMinutes": null,
+          "status": "candidate",
+          "note": "未知，后端按保守默认处理"
+        },
+        "factoryIps": []
+      }
+    }
+  },
+  "promote": [
+    {
+      "variant": "tapo.1",
+      "streams": [
+        "main",
+        "sub"
+      ],
+      "evidence": {
+        "type": "device",
+        "model": "Tapo C210",
+        "date": "2026-10-06",
+        "result": "子码流 /stream2 浏览器实测播放（1280×720）；主码流 /stream1 直接 RTSP 诊断鉴权与 SETUP 通过，PLAY 阶段被设备断开（原因待查）",
+        "ref": "h2z.security/docs/CAMERA-BINDING-2026-10-06.md"
+      }
+    },
+    {
+      "variant": "dahua.1",
+      "streams": [
+        "sub"
+      ],
+      "evidence": {
+        "type": "device",
+        "model": "（型号未记录）",
+        "date": "2026-10-06",
+        "result": "现场一台摄像头用 /cam/realmonitor?channel=1&subtype=1 浏览器实测播放约 34 秒，2560×1440；只验证了子码流这一路",
+        "ref": "h2z.security/docs/CAMERA-BINDING-2026-10-06.md"
+      }
+    }
+  ],
+  "generic": {
+    "id": "generic",
+    "name": "通用候选（旧代码里的写法，厂家未证实）",
+    "variants": [
+      {
+        "id": "generic.1",
+        "main": "/h264/ch1/main/av_stream",
+        "sub": "/h264/ch1/sub/av_stream"
+      },
+      {
+        "id": "generic.2",
+        "main": "/h264Preview_01_main",
+        "sub": "/h264Preview_01_sub"
+      },
+      {
+        "id": "generic.3",
+        "main": "/live/ch00_0",
+        "sub": "/live/ch00_1"
+      },
+      {
+        "id": "generic.4",
+        "main": "/11",
+        "sub": "/12"
+      }
+    ],
+    "evidence": {
+      "type": "legacy-code",
+      "date": "2026-11-04",
+      "ref": "h2z.backend/apps/ioc/src/network/rtsp-probe.ts（库化之前的 RTSP_CANDIDATES）",
+      "result": "旧代码里的探测候选，厂家没有逐个证实，只作 401/404 探测的候选，不直接填进摄像头"
+    }
+  },
+  "sweep": [
+    "hikvision.1",
+    "dahua.1",
+    "tapo.1",
+    "generic.1",
+    "uniview.1",
+    "generic.2",
+    "generic.3",
+    "generic.4"
+  ]
+}

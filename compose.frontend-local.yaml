@@ -1,0 +1,5 @@
+# Explicit fallback for an exported frontend bundle, without registry access.
+services:
+  web:
+    image: h2z-security/ioc-web:local
+    build: {context: ./frontend}

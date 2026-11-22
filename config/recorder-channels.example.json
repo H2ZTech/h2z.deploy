@@ -1,0 +1,4 @@
+[
+  {"id": "cam001", "stream": "main", "url": "rtsp://zlm:554/live/cam001"},
+  {"id": "cam001", "stream": "sub", "url": "rtsp://zlm:554/live/cam001_sub"}
+]

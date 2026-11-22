@@ -1,0 +1,667 @@
+name: h2z-security
+x-common: &common
+  restart: unless-stopped
+  group_add: ['20001']
+  networks: [security]
+  logging: &logging
+    driver: json-file
+    options: {max-size: '20m', max-file: '3'}
+x-ai-env: &ai-env
+  H2Z_NODERED_URL: http://nodered:1880
+  H2Z_REGISTRY: /work/registry
+  H2Z_MCP_TOOLS_RUNTIME: /work/registry/promoted-tools.json
+services:
+  # Creates secret files added by a newer release before anything reads them (existing ones are kept;
+  # nothing is printed). First install still uses scripts/init.sh for .env and runtime files.
+  secrets-init:
+    image: ${HOST_NETWORK_IMAGE:-node:22-alpine}
+    logging: *logging
+    user: '0:0'
+    network_mode: none
+    restart: 'no'
+    command: [node, /scripts/ensure-secrets.mjs, /secrets]
+    volumes:
+      - ./scripts/secrets.mjs:/scripts/secrets.mjs:ro
+      - ./scripts/ensure-secrets.mjs:/scripts/ensure-secrets.mjs:ro
+      - ./secrets:/secrets
+  ioc-storage-init:
+    image: alpine:3.20
+    logging: *logging
+    user: '0:0'
+    network_mode: none
+    restart: 'no'
+    command: [sh, -c, 'chown -R 1001:1001 /data']
+    volumes: [ioc-data:/data]
+  # 本地录像机的配置目录（runtime/recorder）：后端（nestjs，补充组 20001）写通道清单和容量上限，recorder 只读。
+  # 老部署没重跑 init，这里每次启动把属组和权限补上（不碰里面的文件内容）。
+  recorder-config-init:
+    image: alpine:3.20
+    logging: *logging
+    restart: 'no'
+    command: [sh, -c, 'mkdir -p /cfg && chown root:20001 /cfg && chmod 2770 /cfg && find /cfg -type f -exec chgrp 20001 {} + -exec chmod 0660 {} +']
+    volumes: ['./runtime/recorder:/cfg']
+  postgres:
+    <<: *common
+    image: ${POSTGRES_IMAGE:?run init}
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?run init}
+      POSTGRES_DB: ${POSTGRES_DB}
+    command: [postgres, -c, shared_buffers=128MB, -c, max_connections=100]
+    volumes: [pg-data:/var/lib/postgresql/data]
+    healthcheck:
+      test: [CMD-SHELL, 'pg_isready -U "$${POSTGRES_USER}" -d "$${POSTGRES_DB}"']
+      interval: 5s
+      timeout: 5s
+      retries: 20
+    mem_limit: 768m
+  emqx:
+    <<: *common
+    image: ${EMQX_IMAGE}
+    hostname: security-emqx
+    environment:
+      EMQX_NODE__COOKIE: ${EMQX_COOKIE:?run init}
+      EMQX_NODE__NAME: emqx@security-emqx
+      EMQX_DASHBOARD__DEFAULT_PASSWORD: ${EMQX_PASSWORD:?run init}
+    ports:
+      - '${MQTT_BIND:-127.0.0.1}:${MQTT_PORT:-1896}:1883'
+      - '127.0.0.1:${EMQX_DASHBOARD_PORT:-18096}:18083'
+    volumes:
+      - emqx-data:/opt/emqx/data
+      - ./config/emqx-base.hocon:/opt/emqx/etc/base.hocon:ro
+      - ./runtime/emqx-users.csv:/opt/emqx/data/bootstrap-users.csv:ro
+    healthcheck:
+      test: [CMD, curl, -fsS, http://127.0.0.1:18083/status]
+      interval: 10s
+      timeout: 10s
+      retries: 20
+    mem_limit: 768m
+  backend:
+    <<: *common
+    image: ${BACKEND_IMAGE}
+    init: true
+    environment:
+      NODE_ENV: production
+      PORT: '3001'
+      HOST: 0.0.0.0
+      IOC_DATA_DIR: /app/data/ioc
+      IOC_AUTH: none
+      # Leave IOC_NETWORK_SCOPE empty: the default exploration scope then follows the board's real
+      # network as published by the host-network service (cable / DHCP changes are picked up).
+      IOC_NETWORK_SCOPE: ${IOC_NETWORK_SCOPE:-}
+      # H2Z OS (set by h2z-os-stack): first boot creates a project for this device; the device language defaults to English
+      IOC_AUTO_PROJECT: ${IOC_AUTO_PROJECT:-}
+      IOC_DEFAULT_LANG: ${IOC_DEFAULT_LANG:-en}
+      # Transcode caps follow the ZLM memory budget (scripts/transcode-budget.mjs writes these into .env from host RAM); empty = backend defaults
+      IOC_TRANSCODE_MAX: ${IOC_TRANSCODE_MAX:-}
+      IOC_TRANSCODE_THUMB_MAX: ${IOC_TRANSCODE_THUMB_MAX:-}
+      # GPU calibration (scripts/gpu-calibrate.sh writes these into .env after measuring the real decode engine): browser native hardware-decode cap for the local screen, VAAPI hardware-transcode cap; empty = not calibrated, defaults apply
+      H2Z_GPU_VENDOR: ${H2Z_GPU_VENDOR:-}
+      H2Z_GPU_NODE: ${H2Z_GPU_NODE:-}
+      H2Z_GPU_DECODE_SLOTS: ${H2Z_GPU_DECODE_SLOTS:-}
+      H2Z_GPU_NATIVE_MAX: ${H2Z_GPU_NATIVE_MAX:-}
+      IOC_VAAPI_MAX: ${IOC_VAAPI_MAX:-}
+      # Live-view admission by CPU: empty = target 0.95; a number 0.95-1 = target; off = never refuse on CPU (testing / load tests)
+      IOC_VIEW_TARGET_CPU: ${IOC_VIEW_TARGET_CPU:-}
+      IOC_HOST_NETWORK_FILE: /run/host-network/host-network.json
+      # Maintenance WiFi hotspot network: never an exploration target (also enforced by the host firewall).
+      IOC_EXCLUDED_NETWORKS: ${MAINT_AP_NETWORK:-192.168.234.0/24}
+      # IOC admin → 设备网络: LAN / hotspot / Tailscale through host-agent, guarded by the device password.
+      IOC_HOST_AGENT_SOCKET: /run/h2z-host/agent.sock
+      IOC_DEVICE_PASSWORD_FILE: /run/ioc/device-password
+      IOC_ADMIN_TOKEN_FILE: /run/ioc/admin-token
+      IOC_H2Z_URL: http://h2z-api:3083
+      IOC_H2Z_TOKEN_FILE: /run/h2z-api/token
+      IOC_PLATFORM_URL: http://127.0.0.1:3001
+      IOC_PLATFORM_TOKEN_FILE: /run/security/service-token
+      IOC_PLATFORM_PATH_CAPABILITIES: /security/health
+      IOC_PLATFORM_PATH_CAMERAS: /security/ioc/cameras
+      IOC_PLATFORM_PATH_CAMERASSYNC: /security/ioc/cameras/sync
+      IOC_PLATFORM_PATH_SPACES: /security/ioc/spaces
+      IOC_PLATFORM_PATH_MODELS: /security/ioc/models
+      IOC_PLATFORM_PATH_MODELSRECONCILE: /security/ioc/models/reconcile
+      IOC_PLATFORM_PATH_OPS: /security/ioc
+      IOC_MQTT_URL: mqtt://${MQTT_USERNAME}:${MQTT_PASSWORD}@emqx:1883
+      DB_TYPE: postgres
+      DB_HOST: postgres
+      DB_PORT: '5432'
+      DB_USER: ${POSTGRES_USER}
+      DB_PASSWORD: ${POSTGRES_PASSWORD}
+      DB_NAME: ${H2Z_DB:-${POSTGRES_DB}}
+      # security main.ts does not pass MQTT credentials to its subscription client.
+      # Run the read/write notifier through the authenticated URL as well.
+      MQTT_BROKER_URL: mqtt://${MQTT_USERNAME}:${MQTT_PASSWORD}@emqx:1883
+      MQTT_USERNAME: ${MQTT_USERNAME}
+      MQTT_PASSWORD: ${MQTT_PASSWORD}
+      IOC_SERVICE_TOKEN_FILE: /run/security/service-token
+      # h2z.backend（2026-11-11 起 B 也用它）：base 宿主登录签名密钥放在 backend-data 卷里（不存在会自动生成）；
+      # 默认管理员口令只在用户表为空时创建（老站点已有 admin，不受影响）
+      JWT_SECRET_FILE: /app/data/secrets/jwt/secret
+      H2Z_ADMIN_PASSWORD: ${H2Z_ADMIN_PASSWORD:-}
+      AI_ENGINE_TOKEN_FILE: /run/security/engine-token
+      CAMERA_SECRET_KEY_FILE: /run/security/camera-key
+      ZLM_HOST: zlm
+      ZLM_PORT: '80'
+      ZLM_SECRET: ${ZLM_SECRET}
+      ZLM_HOOK_SECRET: ${ZLM_HOOK_SECRET}
+      ZLM_RECORD_ROOT: /opt/media/www/record
+      ZLM_RECORD_LOCAL_ROOT: /opt/media/www/record
+      # 本地录像机（h2z.recorder，recorder profile）：界面「录像 → 本地录像机」→ 后端写通道清单 / 容量上限，转发状态和回放
+      RECORDER_CONFIG_DIR: /recorder-config
+      RECORDER_CORE_URL: http://recorder:9301
+      RECORDER_PLAYBACK_URL: http://recorder-playback:9302
+      RECORDER_ZLM_RTSP: rtsp://zlm:554
+      # 空间运动索引（S1 画框倒查）：recorder-motion 的接口；site 写进 TDengine 子表标签
+      RECORDER_MOTION_URL: http://recorder-motion:9303
+      RECORDER_SITE: ${RECORDER_SITE:-site}
+      # 盘识别（storage-agent，默认随底座启动）写的状态：后端据此发盘 / 阵列 / SMART 告警；没起 storage-agent 就没有这个文件
+      STORAGE_STATUS_FILE: /run/storage/storage.json
+      # 建池命令通道（storage-agent 的 unix socket；属组 20001 = 后端）
+      STORAGE_SOCKET: /run/h2z-storage/agent.sock
+      # 板子看门狗（host/watchdog.sh，主机上 systemd 每分钟跑）写的状态：后端据此发网络 / Tailscale / 服务 / 磁盘告警；没装看门狗就没有这个文件
+      WATCHDOG_STATUS_FILE: /run/h2z-watchdog/status.json
+      IOC_MODELS_DIR: /app/uploads/models
+      # 摄像头库（本仓库 camera-library/library.json，scripts/camera-library/build.mjs 生成）：IOC 的品牌识别 / 码流路径 / ONVIF 端口从这里取。
+      # 读不到或不合规时 IOC 退回内置的最小集（与库化之前的写死路径一致），不会起不来；更新库后 docker compose restart backend 生效
+      IOC_CAMERA_LIBRARY_FILE: /camera-library/library.json
+      # 设备网页经板子代理（h2z.ioc docs/DEVICE-WEB-PROXY.md）：每个会话一个端口；空 = 关闭
+      IOC_DEVICE_WEB_PORTS: ${DEVICE_WEB_PORTS:-18001-18016}
+    # 与 IOC 8096 同一个绑定：HTTP_BIND=0.0.0.0（现场内网直接开 IOC）时内网也能开设备网页；
+    # 默认 127.0.0.1 时由 tailscale-entry.sh 把这段端口也经 Tailscale Serve 转出去
+    ports:
+      - '${HTTP_BIND:-127.0.0.1}:${DEVICE_WEB_PORTS:-18001-18016}:${DEVICE_WEB_PORTS:-18001-18016}'
+    volumes:
+      - ./secrets/security:/run/security:ro
+      - ./secrets/ioc:/run/ioc:ro
+      - ./secrets/h2z-api:/run/h2z-api:ro
+      - ioc-data:/app/data/ioc
+      - backend-data:/app/data
+      - backend-uploads:/app/uploads
+      - recordings:/opt/media/www/record
+      - host-network:/run/host-network:ro
+      - storage-state:/run/storage:ro
+      - storage-ctl:/run/h2z-storage
+      - /var/lib/h2z/watchdog:/run/h2z-watchdog:ro
+      - host-agent:/run/h2z-host
+      - ./runtime/recorder:/recorder-config
+      # 整个目录只读挂（不是单个文件）：git pull 换文件后容器里立刻是新内容
+      - ./camera-library:/camera-library:ro
+    depends_on:
+      secrets-init: {condition: service_completed_successfully}
+      recorder-config-init: {condition: service_completed_successfully}
+      host-network: {condition: service_started}
+      host-agent: {condition: service_started}
+      postgres: {condition: service_healthy}
+      emqx: {condition: service_healthy}
+      h2z-api: {condition: service_healthy}
+      ioc-storage-init: {condition: service_completed_successfully}
+    healthcheck:
+      test: [CMD, node, -e, "Promise.all([fetch('http://127.0.0.1:3001/security/health'),fetch('http://127.0.0.1:3001/ioc/health')]).then(rs=>process.exit(rs.every(r=>r.ok)?0:1)).catch(()=>process.exit(1))"]
+      interval: 10s
+      timeout: 5s
+      retries: 20
+      start_period: 30s
+    mem_limit: 1280m
+  # Publishes the board's current site CIDRs (host NICs, not the Docker bridge) for the backend's
+  # default exploration scope. Host networking is only used to read interface addresses.
+  host-network:
+    image: ${HOST_NETWORK_IMAGE:-node:22-alpine}
+    restart: unless-stopped
+    network_mode: host
+    user: '0:0'
+    read_only: true
+    cap_drop: [ALL]
+    security_opt: ['no-new-privileges:true']
+    command: [node, /agent/host-network-agent.mjs, /out/host-network.json, '10']
+    environment:
+      H2Z_EXCLUDED_NETWORKS: ${MAINT_AP_NETWORK:-192.168.234.0/24}
+    volumes:
+      - ./scripts/host-network-agent.mjs:/agent/host-network-agent.mjs:ro
+      - host-network:/out
+    logging:
+      driver: json-file
+      options: {max-size: '5m', max-file: '2'}
+    mem_limit: 64m
+  # Board network management for IOC admin → 设备网络: LAN address (apply → confirm, automatic rollback),
+  # maintenance WiFi hotspot, Tailscale login. Runs host tools (netplan, systemctl, ip, iw) via nsenter;
+  # the host side is installed once with `sudo sh host/setup-host-network.sh`. Reachable only through the
+  # unix socket in the host-agent volume (group 20001 = backend); no TCP port.
+  host-agent:
+    image: ${HOST_AGENT_IMAGE:-node:22-bookworm-slim}
+    restart: unless-stopped
+    network_mode: host
+    pid: host
+    privileged: true
+    command: [node, /agent/host-agent.mjs]
+    environment:
+      H2Z_AGENT_SOCKET: /run/h2z-host/agent.sock
+      H2Z_HOST_ETC: /host/etc
+      H2Z_TAILSCALE_CLI: /opt/tailscale/tailscale
+      H2Z_TAILSCALE_SOCKET: /var/run/tailscale/tailscaled.sock
+      H2Z_LAN_ROLLBACK_SECONDS: '180'
+      # Cloudflare 穿透（scripts/cf-tunnel.mjs，宿主上的 cloudflared 系统服务；宿主要先装 cloudflared）：缺省对外网址
+      H2Z_TUNNEL_DEFAULT_HOSTNAME: ${TUNNEL_DEFAULT_HOSTNAME:-}
+      # Meta Muse 连接器（scripts/muse.mjs，docs/MUSE-API.md）：密钥在界面 / 接口绑定后存 /etc/h2z/muse/api-key，下面只是可选的接口地址和本地限流（空 = 缺省）
+      H2Z_MUSE_BASE_URL: ${MUSE_BASE_URL:-}
+      H2Z_MUSE_DAILY_TOKENS: ${MUSE_DAILY_TOKENS:-}
+      H2Z_MUSE_RPM: ${MUSE_RPM:-}
+      H2Z_MUSE_MAX_CONCURRENT: ${MUSE_MAX_CONCURRENT:-}
+      # Bump when host-agent.mjs gains an endpoint: the script is a bind mount, so a changed value here is what
+      # makes `docker compose up -d` recreate the container with the new script (l2-scan: layer-2 neighbour scan, camera-discover: ONVIF WS-Discovery + Hikvision SADP,
+      # vlans: 802.1Q sub-interfaces on the LAN port, multiport: several wired ports, system: device info / time / power / name, upgrade: H2Z OS full-package upgrade, kiosk: installs the local-display scripts after git pull).
+      H2Z_AGENT_FEATURES: l2-scan,vlans,metrics,camera-discover,multiport,system,upgrade,online-update,kiosk,tailscale-enable,upgrade-reset,cloudflare-tunnel,meta-muse,git-update
+    volumes:
+      - ./scripts/host-agent.mjs:/agent/host-agent.mjs:ro
+      - ./scripts/online-update.mjs:/agent/online-update.mjs:ro
+      - ./scripts/cf-tunnel.mjs:/agent/cf-tunnel.mjs:ro
+      - ./scripts/muse.mjs:/agent/muse.mjs:ro
+      - host-agent:/run/h2z-host
+      # H2Z OS 整包升级的暂存目录（H2Z OS 上链接到数据盘 /data/h2z-upgrade；别的机器上只是个空目录）
+      - /var/lib/h2z/upgrade:/upgrade
+      - /etc/h2z:/host/etc/h2z
+      - /etc/netplan:/host/etc/netplan
+      - tailscale-cli:/opt/tailscale:ro
+      - tailscale-socket:/var/run/tailscale
+    depends_on:
+      tailscale-cli: {condition: service_completed_successfully}
+    logging:
+      driver: json-file
+      options: {max-size: '5m', max-file: '2'}
+    mem_limit: 128m
+  # Private remote access (SSH, IOC 8096, DSH 3096) through Tailscale; outbound only, no customer port
+  # forwarding, no subnet routes, board DNS untouched. Log in from IOC admin → 设备网络 (auth key or login
+  # link), or put a one-time TS_AUTHKEY in .env. Node name = board hostname unless TAILSCALE_HOSTNAME is set.
+  tailscale:
+    image: ${TAILSCALE_IMAGE:-tailscale/tailscale:stable}
+    restart: unless-stopped
+    network_mode: host
+    cap_add: [NET_ADMIN, NET_RAW]
+    devices:
+      - /dev/net/tun:/dev/net/tun
+    environment:
+      TS_AUTHKEY: ${TS_AUTHKEY:-}
+      TS_AUTH_ONCE: 'true'
+      TS_HOSTNAME: ${TAILSCALE_HOSTNAME:-}
+      TS_STATE_DIR: /var/lib/tailscale
+      TS_SOCKET: /var/run/tailscale/tailscaled.sock
+      TS_USERSPACE: 'false'
+      # 内核没有 iptables(legacy) 的表（Ubuntu 新内核走 nftables，容器里也没有 /lib/modules）：不指定会报 can't initialize iptables table `filter'
+      TS_DEBUG_FIREWALL_MODE: nftables
+      H2Z_TUNNEL_DEFAULT_HOSTNAME: ${TUNNEL_DEFAULT_HOSTNAME:-}
+      TS_EXTRA_ARGS: --accept-dns=false
+      # Serve 只转绑在 127.0.0.1 的端口（见 config/tailscale-entry.sh）；绑 0.0.0.0 时 tailnet 直接可达
+      H2Z_HTTP_BIND: ${HTTP_BIND:-127.0.0.1}
+      H2Z_HTTP_PORT: ${HTTP_PORT:-8096}
+      H2Z_DSH_BIND: ${AI_WEB_BIND:-127.0.0.1}
+      H2Z_DSH_PORT: ${AI_WEB_HOST_PORT:-3096}
+      H2Z_DEVICE_WEB_PORTS: ${DEVICE_WEB_PORTS:-18001-18016}
+    entrypoint: [/bin/sh, /config/tailscale-entry.sh]
+    volumes:
+      - tailscale-state:/var/lib/tailscale
+      - tailscale-socket:/var/run/tailscale
+      - ./config/tailscale-entry.sh:/config/tailscale-entry.sh:ro
+    logging:
+      driver: json-file
+      options: {max-size: '5m', max-file: '2'}
+    mem_limit: 256m
+  # Copies the static tailscale CLI for host-agent (same version as the tailscale service).
+  tailscale-cli:
+    image: ${TAILSCALE_IMAGE:-tailscale/tailscale:stable}
+    logging: *logging
+    restart: 'no'
+    network_mode: none
+    entrypoint: [cp, /usr/local/bin/tailscale, /out/tailscale]
+    volumes: [tailscale-cli:/out]
+  # Adds the H.265 → H.264 ffmpeg command to an existing runtime/zlm.ini (live wall transcoding); new installs get it from init.
+  zlm-config:
+    image: ${HOST_NETWORK_IMAGE:-node:22-alpine}
+    logging: *logging
+    user: '0:0'
+    network_mode: none
+    restart: 'no'
+    command: [node, /scripts/zlm-config.mjs, /runtime/zlm.ini]
+    volumes:
+      - ./scripts/zlm-config.mjs:/scripts/zlm-config.mjs:ro
+      - ./runtime:/runtime
+  zlm:
+    <<: *common
+    image: ${ZLM_IMAGE}
+    # ZLM 在录像的数据链路上（recorder 从它拉流），比默认高；直播转码的 ffmpeg 在这个容器里，靠转码路数上限控制总量
+    cpu_shares: 2048
+    depends_on:
+      zlm-config: {condition: service_completed_successfully}
+    environment:
+      # Changing this recreates the container once so it re-reads zlm.ini (bump when the [ffmpeg] section changes)
+      H2Z_ZLM_CONFIG: transcode-v7
+    volumes:
+      - ./runtime/zlm.ini:/opt/media/conf/config.ini:ro
+      - recordings:/opt/media/www/record
+    ports:
+      - '127.0.0.1:${RTSP_PORT:-8596}:554'
+      - '127.0.0.1:${RTMP_PORT:-1996}:1935'
+    healthcheck:
+      test: [CMD-SHELL, 'curl -fsS "http://localhost/index/api/getServerConfig?secret=${ZLM_SECRET}" >/dev/null']
+      interval: 10s
+      timeout: 5s
+      retries: 10
+    # ffmpeg transcodes run inside this container, each ~48 MB private memory (measured 2026-11-05: anon-rss 47-49 MB).
+    # 1536m was sized for 16 transcodes; at 32 splits (all transcoded) the kernel OOM-killed ffmpeg and then MediaServer,
+    # restarting ZLM (restarts=8) and dropping every picture. Budget: ~48 MB x transcodes + ~0.5 GB for ZLM itself.
+    # 4096m covers the default transcode cap (40); raise via ZLM_MEM_LIMIT for 128 thumbnail streams (~6.5 GB).
+    mem_limit: ${ZLM_MEM_LIMIT:-4096m}
+    # Official image default is "-l 0" (trace): every RTSP keep-alive of every camera is logged, ~2000 lines/min at 116 cameras,
+    # and camera usernames/passwords are printed in clear ("play | rtsp://... user pass"). Warn level (3) keeps errors only.
+    # 0 trace, 1 debug, 2 info, 3 warn, 4 error; override with ZLM_LOG_LEVEL in .env when debugging a camera.
+    # Same program and arguments as the image's CMD otherwise (the rk3588 / x86 images are built FROM the official one).
+    command: [./MediaServer, -s, default.pem, -c, ../conf/config.ini, -l, '${ZLM_LOG_LEVEL:-3}']
+  nodered:
+    <<: *common
+    image: ${NODERED_IMAGE}
+    command: [--settings, /usr/src/node-red/h2z-settings.js]
+    ports: ['127.0.0.1:${NODERED_PORT:-1897}:1880']
+    environment:
+      FLOWS: flows.json
+      H2Z_NODERED_ADMIN_TOKEN_FILE: /run/h2z-nodered-admin/token
+      H2Z_NODERED_OPERATOR_PASSWORD_FILE: /run/h2z-nodered/operator-password
+      H2Z_NODERED_CREDENTIAL_SECRET_FILE: /run/h2z-nodered/credential-secret
+    volumes:
+      - nodered-data:/data
+      - ./secrets/nodered-admin:/run/h2z-nodered-admin:ro
+      - ./secrets/nodered:/run/h2z-nodered:ro
+    depends_on:
+      secrets-init: {condition: service_completed_successfully}
+    healthcheck:
+      test: [CMD, node, -e, "fetch('http://127.0.0.1:1880/').then(r=>process.exit(r.status<500?0:1)).catch(()=>process.exit(1))"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+    mem_limit: 512m
+  nodered-bridge:
+    <<: *common
+    image: ${AI_IMAGE}
+    command: [node, /app/src/nodered-mcp/http-server.mjs]
+    environment:
+      <<: *ai-env
+      H2Z_NODERED_ADMIN_TOKEN_FILE: /run/h2z-nodered-admin/token
+      H2Z_BRIDGE_PORT: '3090'
+    volumes:
+      - ./secrets/nodered-admin:/run/h2z-nodered-admin:ro
+      - registry:/work/registry:ro
+    depends_on:
+      secrets-init: {condition: service_completed_successfully}
+      nodered: {condition: service_healthy}
+    healthcheck:
+      test: [CMD, node, -e, "fetch('http://127.0.0.1:3090/healthz').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+    mem_limit: 256m
+  ai-server:
+    <<: *common
+    image: ${AI_IMAGE}
+    environment:
+      <<: *ai-env
+      H2Z_WEB_PORT: ${AI_WEB_PORT:-3096}
+      H2Z_LOOP_DRY_RUN: ${H2Z_LOOP_DRY_RUN:-0}
+      H2Z_NODERED_BRIDGE_URL: http://nodered-bridge:3090
+      H2Z_PROBE_APPROVAL_ON_TIMEOUT: fail
+      H2Z_PROBE_APPROVAL_TIMEOUT_MS: '600000'
+      # DSH LAN gateway (h2z.ai.server dsh-lan-gateway.mjs): IP-literal Hosts inside these CIDRs are
+      # trusted on any port (IP literals cannot be DNS-rebound), so any customer private LAN and DHCP
+      # change works without site configuration; 100.64.0.0/10 is the Tailscale address range (remote
+      # access through the tailnet). Who can reach the port is decided by AI_WEB_BIND.
+      H2Z_DSH_LAN_NETWORKS: ${DSH_LAN_NETWORKS:-10.0.0.0/8,172.16.0.0/12,192.168.0.0/16,100.64.0.0/10}
+      H2Z_DSH_TRUSTED_NAMES: ${DSH_TRUSTED_NAMES:-}
+      H2Z_DSH_WEB_PASSWORD_FILE: /run/h2z-dsh-web/password
+      # Empty keeps DSH's workspace-write file sandbox. Kernels without Landlock (Orange Pi vendor 6.1)
+      # need danger-full-access; see docs/ORANGE-PI.md.
+      H2Z_DSH_SANDBOX_MODE: ${DSH_SANDBOX_MODE:-}
+    ports: ['${AI_WEB_BIND:-127.0.0.1}:${AI_WEB_HOST_PORT:-3096}:${AI_WEB_PORT:-3096}']
+    volumes:
+      - registry:/work/registry:ro
+      - ./runtime/ai-shared:/work/shared
+      - dsh-home:/home/worker/.dsh
+      - ./secrets/dsh-web:/run/h2z-dsh-web:ro
+    depends_on:
+      secrets-init: {condition: service_completed_successfully}
+      nodered-bridge: {condition: service_healthy}
+    mem_limit: 1536m
+  h2z-api:
+    <<: *common
+    image: ${AI_IMAGE}
+    command: [node, /app/src/ai-server/api-server.mjs]
+    environment:
+      <<: *ai-env
+      H2Z_SHARED: /work/shared
+      H2Z_API_PORT: '3083'
+      H2Z_API_TOKEN_FILE: /run/h2z-api/token
+      H2Z_NODERED_ADMIN_TOKEN_FILE: /run/h2z-nodered-admin/token
+    volumes:
+      - ./runtime/ai-shared:/work/shared
+      - registry:/work/registry
+      - ./secrets/h2z-api:/run/h2z-api:ro
+      - ./secrets/nodered-admin:/run/h2z-nodered-admin:ro
+    depends_on:
+      secrets-init: {condition: service_completed_successfully}
+      ai-server: {condition: service_started}
+    healthcheck:
+      test: [CMD, node, -e, "fetch('http://127.0.0.1:3083/healthz').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+    mem_limit: 512m
+  web:
+    <<: *common
+    image: ${FRONTEND_IMAGE}
+    ports: ['${HTTP_BIND:-127.0.0.1}:${HTTP_PORT:-8096}:80']
+    volumes:
+      - ./config/nginx.conf:/etc/nginx/conf.d/default.conf:ro
+      - ./config/web-config.js:/usr/share/nginx/html/ioc/config.js:ro
+    depends_on:
+      backend: {condition: service_healthy}
+      zlm: {condition: service_healthy}
+    healthcheck:
+      test: [CMD, wget, -qO-, http://127.0.0.1/healthz]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+    mem_limit: 128m
+  yolo:
+    <<: *common
+    profiles: [vision]
+    image: ${YOLO_IMAGE}
+    build: {context: ./yolo}
+    environment:
+      ENGINE_ID: yolo8-vehicle
+      BACKEND_URL: http://backend:3001
+      ENGINE_TOKEN_FILE: /run/security/engine-token
+      MQTT_HOST: emqx
+      MQTT_USER: ${MQTT_USERNAME}
+      MQTT_PASSWORD: ${MQTT_PASSWORD}
+      YOLO_MODE: ${YOLO_MODE:-disabled}
+      YOLO_MODEL: ${YOLO_MODEL:-/models/yolov8n.pt}
+      VIDEO_DECODER: ${VIDEO_DECODER:-h264}
+      INFERENCE_FPS: ${INFERENCE_FPS:-3}
+    volumes:
+      - ./secrets/security/engine-token:/run/security/engine-token:ro
+      - ./models:/models:ro
+      - yolo-outbox:/data
+    depends_on:
+      backend: {condition: service_healthy}
+    healthcheck:
+      test: [CMD, python, -c, "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8090/healthz')"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+    mem_limit: 1536m
+  # SiteOps 录像机（h2z.recorder，docs/PLAN-2026-11-01-SITEOPS-RECORDER.md）。默认不启用：
+  #   docker compose --profile recorder up -d recorder
+  # 从 ZLM 拉流写块池（runtime/recorder/channels.json 列出要录的码流）。块池默认是命名卷；NAS 托管模式（如 LA9）把 RECORDER_POOL_DIR 设成存储卷上的目录。
+  recorder:
+    <<: *common
+    profiles: [recorder]
+    image: ${RECORDER_IMAGE:-ghcr.io/h2ztech/h2z-recorder:latest}
+    command: [core]
+    # 写录像是最高优先级，数据不能停（现场 H2Z-66DC：整机 load 35 时 ZLM 拉流超时、写盘队列满丢 GOP）：
+    # CPU 权重 4 倍于默认，内存紧张时最后才被内核杀。别的容器（直播转码、HDMI 浏览器）让给它。
+    cpu_shares: 4096
+    oom_score_adj: -900
+    depends_on:
+      zlm: {condition: service_healthy}
+    environment:
+      # 通道清单和容量上限都由界面设置（录像 → 本地录像机），后端写到 runtime/recorder/，10 秒内生效
+      RECORDER_CHANNELS: /config/channels.json
+      RECORDER_CAPACITY: /config/capacity.json
+      RECORDER_POOL: /pool
+      # 没有 capacity.json 时的容量（GB）；空 = 等界面设（不设就不录、不占盘）
+      RECORDER_POOL_GB: ${RECORDER_POOL_GB:-}
+      # 块大小（MB，建池时定下）：块数必须多于码流数；小盘（如 LA31 板子）用 64–128 MB
+      RECORDER_BLOCK_MB: ${RECORDER_BLOCK_MB:-128}
+      # 磁盘至少留给系统 max(比例, GB)：扩容前检查，超过就拒绝；别的服务吃到余量以下时录像机不再扩、只覆盖自己最旧的录像
+      RECORDER_RESERVE_PCT: ${RECORDER_RESERVE_PCT:-15}
+      RECORDER_RESERVE_MIN_GB: ${RECORDER_RESERVE_MIN_GB:-10}
+      # 时间对齐：现场 NTP（host 或 host:port），只用来测主机时钟偏差、不改主机时间；空 = 只看主机有没有同步。界面设的（capacity.json）优先
+      RECORDER_NTP_SERVER: ${RECORDER_NTP_SERVER:-}
+      # 录像阵列（M7b）：storage-agent 建池后挂在主机 /srv/h2z/pool、根目录有标记文件 → 内核重开后把新录像写进阵列，
+      # 原来的块池只读保留、到期清掉；阵列没挂上（看不到标记）绝不往挂载点写，照旧写原来的块池并告警
+      RECORDER_ARRAY: /srv/h2z/pool
+      # 录像磁盘组（JBOD，2026-11-10 默认方式）：storage-agent 把每块数据盘挂在 /srv/h2z/disks/<id>（有标记文件 .h2z-disk），块文件分散放在这些盘上；
+      # 池的元数据留在系统盘 /pool。一块盘都没有时不扩容，不往系统盘写
+      RECORDER_JBOD_ROOT: /srv/h2z/disks
+      RECORDER_LISTEN: ':9301'
+    volumes:
+      - ./runtime/recorder:/config:ro
+      - ${RECORDER_POOL_DIR:-recorder-pool}:/pool
+      # rslave：容器起来之后主机上才挂的阵列也看得见（默认 rprivate 看不到，重开进程也没用）；主机上没有会建一个空目录（没建池的机器上一直是空的，不影响）
+      - /srv/h2z:/srv/h2z:rslave
+    healthcheck:
+      test: [CMD, wget, -qO-, 'http://127.0.0.1:9301/healthz']
+      interval: 10s
+      timeout: 3s
+      retries: 3
+    stop_grace_period: 30s
+  # 回放：只读块池（不影响写入），检索 + 拼 MP4（浏览器可直接播、可拖动）
+  recorder-playback:
+    <<: *common
+    profiles: [recorder]
+    image: ${RECORDER_IMAGE:-ghcr.io/h2ztech/h2z-recorder:latest}
+    command: [playback]
+    # 回放只读，让路给写录像（recorder）
+    cpu_shares: 512
+    oom_score_adj: 200
+    environment:
+      RECORDER_POOL: /pool
+      RECORDER_ARRAY: /srv/h2z/pool   # 和内核一样的规则选块池；切到阵列后原来的块池一起读
+      RECORDER_JBOD_ROOT: /srv/h2z/disks   # 磁盘组：和内核一致
+      RECORDER_PLAYBACK_LISTEN: ':9302'
+    volumes:
+      - ${RECORDER_POOL_DIR:-recorder-pool}:/pool:ro
+      - /srv/h2z:/srv/h2z:ro,rslave
+    depends_on:
+      recorder: {condition: service_started}
+    healthcheck:
+      test: [CMD, wget, -qO-, 'http://127.0.0.1:9302/healthz']
+      interval: 10s
+      timeout: 3s
+      retries: 3
+  # 空间运动索引（S1，h2z.recorder docs/MOTION-INDEX.md）：从 ZLM 拉子码流（没有子码流用主码流）做运动检测，
+  # 每秒一张 32×18 格位图写 TDengine（库 siteops_motion，保存 90 天）。跟 recorder 一起起：--profile recorder。
+  # 摄像头和每路设置由界面写 runtime/recorder/motion.json（录像 → 本地录像机 → 运动索引），10 秒内生效。
+  recorder-motion:
+    <<: *common
+    profiles: [recorder]
+    image: ${RECORDER_IMAGE:-ghcr.io/h2ztech/h2z-recorder:latest}
+    command: [motion]
+    environment:
+      RECORDER_MOTION_CONFIG: /config/motion.json
+      RECORDER_MOTION_LISTEN: ':9303'
+      RECORDER_SITE: ${RECORDER_SITE:-site}
+      TDENGINE_URL: http://tdengine:6041
+    volumes:
+      - ./runtime/recorder:/config:ro
+    depends_on:
+      zlm: {condition: service_healthy}
+      tdengine: {condition: service_healthy}
+    healthcheck:
+      test: [CMD, wget, -qO-, 'http://127.0.0.1:9303/healthz']
+      interval: 10s
+      timeout: 3s
+      retries: 3
+    # 每路一个 ffmpeg 解码子码流（640×360、10 fps）：128 路约 0.6 核检测 + 解码
+    mem_limit: 1024m
+  # 盘识别 + 建池（M7，h2z.recorder docs/STORAGE-AGENT.md）：列盘、判断每块盘能不能用、读阵列和 SMART 状态，写 storage.json 给后端发告警；
+  # 建池只在人在页面上确认后、经命令通道（只有后端能连的 unix socket）执行，执行前重新核对每块盘，每步写审计（storage-state/audit.jsonl）。
+  # 默认随底座一起起（2026-11-20 起不再需要 storage profile，用户不用敲命令；录像空间初始化、建池都靠它）。识别不写任何盘（wipefs 只用 -n，smartctl 不唤醒睡眠的盘）。
+  # privileged + pid: host：读主机的挂载表、/dev 下的盘、SMART；建池时 mdadm 建设备节点（/dev 可写）、在主机上写挂载单元并挂载；不联网。
+  storage-agent:
+    image: ${RECORDER_IMAGE:-ghcr.io/h2ztech/h2z-recorder:latest}
+    command: [storage-agent, -out, /out/storage.json, -socket, /run/h2z-storage/agent.sock]
+    restart: unless-stopped
+    environment:
+      TINI_SUBREAPER: '1'   # pid: host 时 tini 不是 1 号进程：登记成子进程收养者（不然会警告、回收不了僵尸进程）
+    privileged: true
+    pid: host
+    network_mode: none
+    read_only: true
+    tmpfs: [/run/mdadm, /tmp]   # mdadm 建阵列时写 /run/mdadm/map
+    volumes:
+      - /dev:/dev
+      - /run/udev:/run/udev:ro
+      - storage-state:/out
+      - storage-ctl:/run/h2z-storage
+    logging: *logging
+    mem_limit: 128m
+  tdengine:
+    <<: *common
+    # telemetry：遥测；recorder：空间运动索引（recorder-motion 用）
+    profiles: [telemetry, recorder]
+    image: ${TDENGINE_IMAGE}
+    hostname: security-tdengine
+    # 日志必须有上限（LA18：td-log 两次涨到 38–39 GB 把系统盘写满）。官方入口不认 TAOS_LOG_KEEP_DAYS 这类变量，
+    # 由 config/tdengine-start.sh 启动前写进 taos.cfg（并关掉镜像里指向构建机的监控上报）；TAOS_ADAPTER_* 给 taosAdapter。
+    # 上限由 scripts/log-limits.mjs 在部署检查（smoke）里核对，改这里要同步改那边的规则。
+    entrypoint: [/tini, --, /bin/sh, /h2z/tdengine-start.sh]
+    command: [taosd]
+    environment:
+      TAOS_FQDN: security-tdengine
+      TZ: Asia/Shanghai
+      TAOS_LOG_KEEP_DAYS: '3'              # taosd 日志只留 3 天
+      TAOS_NUM_OF_LOG_LINES: '1000000'     # 单个日志文件最多 100 万行（约 100–200 MB）后轮转
+      TAOS_ADAPTER_LOG_KEEP_DAYS: '3'
+      TAOS_ADAPTER_LOG_ROTATION_COUNT: '3'
+      TAOS_ADAPTER_LOG_ROTATION_SIZE: 100MB
+      TAOS_ADAPTER_UPLOAD_KEEPER_ENABLE: 'false'
+    volumes:
+      - td-data:/var/lib/taos
+      - td-log:/var/log/taos
+      - ./config/tdengine-start.sh:/h2z/tdengine-start.sh:ro
+    healthcheck:
+      # timeout 8：客户端卡住时一定杀掉（LA18 那次就是一个卡住的健康检查客户端一直在刷日志）
+      test: [CMD-SHELL, "timeout 8 taos -s 'show databases;' >/dev/null"]
+      interval: 10s
+      timeout: 10s
+      retries: 20
+    mem_limit: 1024m
+networks:
+  security: {}
+volumes:
+  pg-data: {}
+  emqx-data: {}
+  backend-data: {}
+  backend-uploads: {}
+  ioc-data: {}
+  recordings: {}
+  nodered-data: {}
+  registry: {}
+  dsh-home: {}
+  host-network: {}
+  storage-state: {}
+  storage-ctl: {}
+  host-agent: {}
+  tailscale-state: {}
+  tailscale-socket: {}
+  tailscale-cli: {}
+  yolo-outbox: {}
+  recorder-pool: {}
+  td-data: {}
+  td-log: {}

@@ -1,0 +1,853 @@
+{
+  "schema": 1,
+  "timeFormatTokens": "YYYY MM DD hh mm ss are zero-padded fields; 'unix' is seconds since 1970-01-01 UTC; any other character is literal",
+  "sources": [
+    {
+      "id": "h2z-la31",
+      "title": "H2Z field deployment LA31 (Hikvision DS-8664N), 2026-10/11",
+      "ledger": "first-party"
+    },
+    {
+      "id": "h2z-backend-isapi",
+      "title": "h2z.backend apps/security/src/ioc-ops/isapi.ts (product implementation)",
+      "ledger": "first-party"
+    },
+    {
+      "id": "dahua-http-api",
+      "title": "DAHUA HTTP API (as republished by Amcrest support, v2.x)",
+      "url": "https://support.amcrest.com/hc/en-us/article_attachments/360012029291",
+      "ledger": "vendor-doc",
+      "accessed": "2026-11-16",
+      "note": "Amcrest 是大华的贴牌厂家，在自己的官方支持站发布这份 API；按厂家文档对待"
+    },
+    {
+      "id": "uniview-urls",
+      "title": "How to Get the URLs for Uniview IPC and NVR? V1.1 (2023-09-26)",
+      "url": "https://www.uniview.com/res/202310/26/20231026_1890323_How%20to%20Get%20the%20URLs%20for%20Uniview%20IPC%20and%20NVR_975509_168459_0.pdf",
+      "ledger": "vendor-doc",
+      "accessed": "2026-11-16"
+    },
+    {
+      "id": "hanwha-rtsp-urls",
+      "title": "Hanwha Vision support: What are the RTSP URLs of Hanwha Devices / NVR RTSP streaming for each profile",
+      "url": "https://support.hanwhavision.eu/hc/en-gb/articles/360015103759-NVR-RTSP-streaming-for-each-profile",
+      "ledger": "vendor-doc",
+      "accessed": "2026-11-16"
+    },
+    {
+      "id": "reolink-cgi-161",
+      "title": "Reolink CGI command v1.61",
+      "url": "https://m.reolink.com/wp-content/uploads/2017/01/Reolink-CGI-command-v1.61.pdf",
+      "ledger": "vendor-doc",
+      "accessed": "2026-11-16"
+    },
+    {
+      "id": "vigi-nvr-rtsp",
+      "title": "TP-Link VIGI FAQ 4677: How to establish an NVR RTSP server",
+      "url": "https://www.vigi.com/en/support/faq/4677/",
+      "ledger": "vendor-doc",
+      "accessed": "2026-11-16"
+    },
+    {
+      "id": "viewtron-api",
+      "title": "Viewtron developer docs: Video Snapshots & Recording Search API",
+      "url": "https://videos.cctvcamerapros.com/developer/docs/applications/video-snapshots-recording-search-api",
+      "ledger": "vendor-doc",
+      "accessed": "2026-11-16"
+    },
+    {
+      "id": "onvif-profile-g",
+      "title": "ONVIF Profile G Specification v1.1; Recording Search, Replay Control and Streaming specifications",
+      "url": "https://www.onvif.org/profiles/profile-g/",
+      "ledger": "standards",
+      "accessed": "2026-11-16"
+    },
+    {
+      "id": "unifi-protect-integration",
+      "title": "UniFi Protect integration API (X-API-KEY, /proxy/protect/integration/v1) as described by the uiprotect project",
+      "url": "https://uiprotect.readthedocs.io/",
+      "ledger": "third-party-cite",
+      "accessed": "2026-11-16"
+    }
+  ],
+  "families": [
+    {
+      "id": "hikvision-isapi",
+      "name": "Hikvision ISAPI",
+      "productSupport": "supported",
+      "vendors": [
+        "hikvision",
+        "hilook",
+        "annke"
+      ],
+      "identify": {
+        "tcpPorts": [
+          80,
+          554,
+          8000
+        ],
+        "http": {
+          "method": "GET",
+          "path": "/ISAPI/System/deviceInfo",
+          "expect": "XML <DeviceInfo> with <deviceType> NVR / DVR / HybirdNVR",
+          "expectContains": "<deviceType>"
+        },
+        "evidence": "verified"
+      },
+      "auth": {
+        "http": "digest",
+        "rtsp": "digest",
+        "lockout": "repeated wrong passwords lock the account: stop after the first 401"
+      },
+      "time": {
+        "zone": "device-local",
+        "note": "search and playback times are the recorder's wall clock written with a trailing Z; read /ISAPI/System/time and correct for the offset",
+        "evidence": "verified"
+      },
+      "channelBase": 1,
+      "interfaces": {
+        "deviceInfo": {
+          "method": "GET",
+          "path": "/ISAPI/System/deviceInfo",
+          "evidence": "verified"
+        },
+        "clock": {
+          "method": "GET",
+          "path": "/ISAPI/System/time",
+          "evidence": "verified"
+        },
+        "channels": {
+          "method": "GET",
+          "path": "/ISAPI/ContentMgmt/InputProxy/channels",
+          "status": "/ISAPI/ContentMgmt/InputProxy/channels/status",
+          "evidence": "verified"
+        },
+        "recordTracks": {
+          "method": "GET",
+          "path": "/ISAPI/ContentMgmt/record/tracks",
+          "evidence": "verified"
+        },
+        "search": {
+          "method": "POST",
+          "path": "/ISAPI/ContentMgmt/search",
+          "body": "CMSearchDescription XML; trackID = channel*100 + (1 main | 2 sub); paged with searchResultPostion, status MORE / OK / NO MATCHES",
+          "evidence": "verified"
+        },
+        "storage": {
+          "method": "GET",
+          "path": "/ISAPI/ContentMgmt/Storage",
+          "evidence": "verified"
+        },
+        "download": {
+          "method": "GET",
+          "path": "/ISAPI/ContentMgmt/download",
+          "body": "downloadRequest XML with the playbackURI; some firmware wants POST",
+          "evidence": "verified"
+        }
+      },
+      "rtsp": {
+        "port": 554,
+        "live": {
+          "main": "/Streaming/Channels/{ch}01",
+          "sub": "/Streaming/Channels/{ch}02",
+          "evidence": "verified"
+        },
+        "playback": {
+          "template": "/Streaming/tracks/{ch}0{stream}/?starttime={start}&endtime={end}",
+          "stream": {
+            "main": "1",
+            "sub": "2"
+          },
+          "timeFormat": "YYYYMMDDThhmmssZ",
+          "scale": "RTSP Scale header, 1/2/4/8x",
+          "evidence": "verified"
+        }
+      },
+      "limits": [
+        "searching the sub-stream track returns playback URIs that still name the main track: rewrite the track number"
+      ],
+      "sources": [
+        "h2z-la31",
+        "h2z-backend-isapi"
+      ]
+    },
+    {
+      "id": "dahua-cgi",
+      "name": "Dahua HTTP API (CGI)",
+      "productSupport": "none",
+      "vendors": [
+        "dahua",
+        "amcrest",
+        "lorex"
+      ],
+      "identify": {
+        "tcpPorts": [
+          80,
+          554,
+          37777
+        ],
+        "http": {
+          "method": "GET",
+          "path": "/cgi-bin/magicBox.cgi?action=getDeviceType",
+          "expect": "text 'type=<model or NVR/DVR>'",
+          "expectContains": "type="
+        },
+        "evidence": "documented"
+      },
+      "auth": {
+        "http": "digest",
+        "rtsp": "digest"
+      },
+      "time": {
+        "zone": "device-local",
+        "note": "all API times are the recorder's local time",
+        "evidence": "candidate"
+      },
+      "channelBase": 1,
+      "interfaces": {
+        "deviceInfo": {
+          "method": "GET",
+          "path": "/cgi-bin/magicBox.cgi?action=getSystemInfo",
+          "also": [
+            "action=getMachineName",
+            "action=getSoftwareVersion",
+            "action=getSerialNo",
+            "action=getVendor"
+          ],
+          "evidence": "documented"
+        },
+        "clock": {
+          "method": "GET",
+          "path": "/cgi-bin/global.cgi?action=getCurrentTime",
+          "format": "result=YYYY-M-D h:m:s",
+          "evidence": "documented"
+        },
+        "channels": {
+          "method": "GET",
+          "path": "/cgi-bin/configManager.cgi?action=getConfig&name=ChannelTitle",
+          "count": "/cgi-bin/magicBox.cgi?action=getProductDefinition&name=MaxRemoteInputChannels",
+          "remote": "/cgi-bin/configManager.cgi?action=getConfig&name=RemoteDevice (camera address per channel)",
+          "evidence": "documented",
+          "remoteEvidence": "candidate"
+        },
+        "search": {
+          "method": "GET",
+          "path": "/cgi-bin/mediaFileFind.cgi",
+          "steps": [
+            "action=factory.create -> result=<object>",
+            "action=findFile&object=<object>&condition.Channel={ch}&condition.StartTime=YYYY-M-D%20h:m:s&condition.EndTime=...&condition.Types[0]=dav -> OK",
+            "action=findNextFile&object=<object>&count=100 -> found=N and items[i].StartTime / EndTime / FilePath / Length / VideoStream",
+            "action=close&object=<object>",
+            "action=destroy&object=<object>"
+          ],
+          "evidence": "documented"
+        },
+        "storage": {
+          "method": "GET",
+          "path": "/cgi-bin/storageDevice.cgi?action=getDeviceAllInfo",
+          "evidence": "documented"
+        },
+        "download": {
+          "method": "GET",
+          "path": "/cgi-bin/loadfile.cgi?action=startLoad&channel={ch}&startTime=YYYY-M-D%20h:m:s&endTime=...&subtype=0",
+          "byName": "/cgi-bin/RPC_Loadfile/<FilePath>",
+          "format": "DAV",
+          "evidence": "documented"
+        }
+      },
+      "rtsp": {
+        "port": 554,
+        "live": {
+          "main": "/cam/realmonitor?channel={ch}&subtype=0",
+          "sub": "/cam/realmonitor?channel={ch}&subtype=1",
+          "evidence": "documented"
+        },
+        "playback": {
+          "template": "/cam/playback?channel={ch}&starttime={start}&endtime={end}",
+          "timeFormat": "YYYY_MM_DD_hh_mm_ss",
+          "evidence": "documented"
+        }
+      },
+      "limits": [
+        "the playback URL has no documented stream selector: main stream only",
+        "downloads are DAV, not MP4"
+      ],
+      "sources": [
+        "dahua-http-api"
+      ]
+    },
+    {
+      "id": "uniview-lapi",
+      "name": "Uniview LAPI",
+      "productSupport": "none",
+      "vendors": [
+        "uniview"
+      ],
+      "identify": {
+        "tcpPorts": [
+          80,
+          554
+        ],
+        "http": {
+          "method": "GET",
+          "path": "/LAPI/V1.0/System/DeviceInfo",
+          "expect": "JSON Response.Data.DeviceModel",
+          "expectContains": "\"DeviceModel\""
+        },
+        "evidence": "candidate"
+      },
+      "auth": {
+        "http": "digest",
+        "rtsp": "digest"
+      },
+      "time": {
+        "zone": "utc",
+        "note": "begin / end are Unix time",
+        "evidence": "documented"
+      },
+      "channelBase": 1,
+      "interfaces": {
+        "deviceInfo": {
+          "method": "GET",
+          "path": "/LAPI/V1.0/System/DeviceInfo",
+          "evidence": "candidate"
+        },
+        "channels": {
+          "method": "GET",
+          "path": "/LAPI/V1.0/Channels/System/ChannelDetailInfos",
+          "evidence": "candidate"
+        },
+        "search": {
+          "method": "GET",
+          "path": "/LAPI/V1.0/Channels/{ch}/Media/Video/Streams/0/Records?Begin={start}&End={end}",
+          "timeFormat": "unix",
+          "evidence": "candidate"
+        },
+        "snapshot": {
+          "method": "GET",
+          "path": "/LAPI/V1.0/Channels/{ch}/Media/Video/Streams/0/Snapshot",
+          "evidence": "documented"
+        }
+      },
+      "rtsp": {
+        "port": 554,
+        "live": {
+          "main": "/unicast/c{ch}/s0/live",
+          "sub": "/unicast/c{ch}/s1/live",
+          "evidence": "documented"
+        },
+        "playback": {
+          "template": "/c{ch}/b{start}/e{end}/replay/",
+          "timeFormat": "unix",
+          "evidence": "documented"
+        }
+      },
+      "limits": [
+        "playback is addressable by time without a search, so a recorder can be supported with the RTSP template alone"
+      ],
+      "sources": [
+        "uniview-urls"
+      ]
+    },
+    {
+      "id": "hanwha-sunapi",
+      "name": "Hanwha Wisenet SUNAPI",
+      "productSupport": "none",
+      "vendors": [
+        "hanwha"
+      ],
+      "identify": {
+        "tcpPorts": [
+          80,
+          554
+        ],
+        "http": {
+          "method": "GET",
+          "path": "/stw-cgi/system.cgi?msubmenu=deviceinfo&action=view",
+          "expect": "text 'Model=…' and 'DeviceType=NVR'",
+          "expectContains": "DeviceType="
+        },
+        "evidence": "candidate"
+      },
+      "auth": {
+        "http": "digest",
+        "rtsp": "digest"
+      },
+      "time": {
+        "zone": "utc",
+        "evidence": "candidate"
+      },
+      "channelBase": 0,
+      "interfaces": {
+        "deviceInfo": {
+          "method": "GET",
+          "path": "/stw-cgi/system.cgi?msubmenu=deviceinfo&action=view",
+          "evidence": "candidate"
+        },
+        "channels": {
+          "method": "GET",
+          "path": "/stw-cgi/media.cgi?msubmenu=videoprofilepolicy&action=view",
+          "note": "Channel.<n>.RecordProfile / LiveProfile / NetworkProfile per channel",
+          "evidence": "documented"
+        },
+        "search": {
+          "method": "GET",
+          "path": "/stw-cgi/recording.cgi?msubmenu=timeline&action=view&Type=All&ChannelIDList={ch}&FromDate={start}&ToDate={end}",
+          "timeFormat": "YYYY-MM-DDThh:mm:ssZ",
+          "evidence": "candidate"
+        }
+      },
+      "rtsp": {
+        "port": 554,
+        "portNote": "the RTSP port is the last of the configured device ports (for example 558)",
+        "live": {
+          "main": "/LiveChannel/{ch}/media.smp",
+          "sub": "/LiveChannel/{ch}/media.smp/profile=2",
+          "evidence": "documented"
+        },
+        "playback": {
+          "template": "/PlaybackChannel/{ch}/media.smp/start={start}&end={end}",
+          "timeFormat": "YYYYMMDDhhmmss",
+          "evidence": "candidate"
+        }
+      },
+      "limits": [
+        "channel numbers start at 0",
+        "which profile number is the low-resolution one differs per channel: read videoprofilepolicy"
+      ],
+      "sources": [
+        "hanwha-rtsp-urls"
+      ]
+    },
+    {
+      "id": "reolink-api",
+      "name": "Reolink HTTP API (api.cgi)",
+      "productSupport": "none",
+      "vendors": [
+        "reolink"
+      ],
+      "identify": {
+        "tcpPorts": [
+          80,
+          443,
+          554,
+          9000
+        ],
+        "http": {
+          "method": "POST",
+          "path": "/cgi-bin/api.cgi?cmd=GetDevInfo",
+          "expect": "JSON [ { cmd: GetDevInfo, value: { DevInfo: { type: NVR } } } ]"
+        },
+        "evidence": "candidate"
+      },
+      "auth": {
+        "http": "user and password in the query string, or a token from cmd=Login",
+        "rtsp": "digest or basic"
+      },
+      "time": {
+        "zone": "device-local",
+        "evidence": "candidate"
+      },
+      "channelBase": 0,
+      "interfaces": {
+        "deviceInfo": {
+          "method": "POST",
+          "path": "/cgi-bin/api.cgi?cmd=GetDevInfo",
+          "evidence": "candidate"
+        },
+        "channels": {
+          "method": "POST",
+          "path": "/cgi-bin/api.cgi?cmd=GetChannelstatus",
+          "evidence": "candidate"
+        },
+        "search": {
+          "method": "POST",
+          "path": "/cgi-bin/api.cgi?cmd=Search",
+          "body": "[{cmd:Search, action:0, param:{Search:{channel, onlyStatus:0, streamType:main|sub, StartTime:{year,mon,day,hour,min,sec}, EndTime:{…}}}}]",
+          "evidence": "documented"
+        },
+        "storage": {
+          "method": "POST",
+          "path": "/cgi-bin/api.cgi?cmd=GetHddInfo",
+          "evidence": "candidate"
+        },
+        "download": {
+          "method": "GET",
+          "path": "/cgi-bin/api.cgi?cmd=Download&source=<file name>&output=<file name>",
+          "evidence": "candidate"
+        }
+      },
+      "rtsp": {
+        "port": 554,
+        "live": {
+          "main": "/Preview_{ch2}_main",
+          "sub": "/Preview_{ch2}_sub",
+          "note": "{ch2} is the 1-based channel, two digits; older firmware uses /h264Preview_{ch2}_main",
+          "evidence": "documented"
+        },
+        "playback": null
+      },
+      "playbackOther": {
+        "kind": "rtmp",
+        "template": "rtmp://{host}/vod/{file}?channel={ch}&stream=0",
+        "evidence": "documented"
+      },
+      "limits": [
+        "no RTSP playback: recordings are files found by Search, then played over RTMP / FLV or downloaded"
+      ],
+      "sources": [
+        "reolink-cgi-161"
+      ]
+    },
+    {
+      "id": "vigi-rtsp",
+      "name": "TP-Link VIGI NVR (RTSP server)",
+      "productSupport": "none",
+      "vendors": [
+        "vigi"
+      ],
+      "identify": {
+        "tcpPorts": [
+          80,
+          443,
+          554,
+          8000
+        ],
+        "evidence": "candidate"
+      },
+      "auth": {
+        "rtsp": "digest (MD5 by default; SHA-256 optional)"
+      },
+      "time": {
+        "zone": "utc",
+        "note": "starttime / endtime are UTC+0",
+        "evidence": "documented"
+      },
+      "channelBase": 1,
+      "interfaces": {},
+      "rtsp": {
+        "port": 554,
+        "live": {
+          "main": "/live/{ch}/1/avm",
+          "sub": "/live/{ch}/2/avm",
+          "note": "vendor writes rtsp://ip/live/ch/stream/avm; stream 1 = main, 2 = sub",
+          "evidence": "documented"
+        },
+        "playback": {
+          "template": "/replay/{ch}/{stream}/avm?starttime={start}&endtime={end}",
+          "stream": {
+            "main": "1",
+            "sub": "2"
+          },
+          "timeFormat": "YYYYMMDDthhmmssz",
+          "evidence": "documented"
+        }
+      },
+      "limits": [
+        "no documented search interface: playback by time only",
+        "SRTP must be off for third-party clients"
+      ],
+      "sources": [
+        "vigi-nvr-rtsp"
+      ]
+    },
+    {
+      "id": "tvt-api",
+      "name": "TVT / Viewtron HTTP API",
+      "productSupport": "none",
+      "vendors": [
+        "tvt"
+      ],
+      "identify": {
+        "tcpPorts": [
+          80,
+          554,
+          6036
+        ],
+        "evidence": "candidate"
+      },
+      "auth": {
+        "http": "basic",
+        "rtsp": "basic or digest"
+      },
+      "time": {
+        "zone": "device-local",
+        "evidence": "candidate"
+      },
+      "channelBase": 1,
+      "interfaces": {
+        "search": {
+          "method": "POST",
+          "path": "/SearchByTime/{ch}",
+          "body": "config XML (xmlns http://www.ipc.com/ver10) with recTypes, starttime and endtime as 'YYYY-MM-DD hh:mm:ss'",
+          "responseKnown": false,
+          "evidence": "documented"
+        },
+        "snapshot": {
+          "method": "GET",
+          "path": "/GetSnapshot/{ch}",
+          "evidence": "documented"
+        }
+      },
+      "rtsp": {
+        "port": 554,
+        "live": {
+          "main": "/chID={ch}&streamType=main&linkType=tcp",
+          "sub": "/chID={ch}&streamType=sub&linkType=tcp",
+          "evidence": "candidate"
+        },
+        "playback": {
+          "template": "/chID={ch}&date={date}&time={time}&timelen={seconds}&streamType={stream}&action=playback",
+          "stream": {
+            "main": "main",
+            "sub": "sub"
+          },
+          "dateFormat": "YYYY-MM-DD",
+          "clockFormat": "hh:mm:ss",
+          "note": "parameter order matters on some firmware",
+          "evidence": "documented"
+        }
+      },
+      "limits": [
+        "the search response format is not in the public page: capture one from a device before writing a parser"
+      ],
+      "sources": [
+        "viewtron-api"
+      ]
+    },
+    {
+      "id": "onvif-profile-g",
+      "name": "ONVIF Profile G (any conformant recorder)",
+      "productSupport": "none",
+      "vendors": [],
+      "identify": {
+        "tcpPorts": [
+          80,
+          554
+        ],
+        "http": {
+          "method": "POST",
+          "path": "/onvif/device_service",
+          "expect": "GetServices lists the recording, search and replay service namespaces"
+        },
+        "evidence": "documented"
+      },
+      "auth": {
+        "http": "WS-UsernameToken (PasswordDigest) or HTTP digest",
+        "rtsp": "digest"
+      },
+      "time": {
+        "zone": "utc",
+        "evidence": "documented"
+      },
+      "channelBase": 1,
+      "interfaces": {
+        "deviceInfo": {
+          "method": "SOAP",
+          "path": "GetDeviceInformation",
+          "evidence": "documented"
+        },
+        "channels": {
+          "method": "SOAP",
+          "path": "search service: FindRecordings + GetRecordingSearchResults (one recording per source)",
+          "evidence": "documented"
+        },
+        "search": {
+          "method": "SOAP",
+          "path": "RecordingInformation.EarliestRecording / LatestRecording; FindEvents for recording start / stop inside a range",
+          "evidence": "documented"
+        },
+        "playbackUri": {
+          "method": "SOAP",
+          "path": "replay service: GetReplayUri(RecordingToken)",
+          "evidence": "documented"
+        }
+      },
+      "rtsp": {
+        "port": 554,
+        "live": null,
+        "playback": {
+          "template": "(URI returned by GetReplayUri)",
+          "headers": [
+            "Require: onvif-replay",
+            "Range: clock=YYYYMMDDThhmmss.fffZ-",
+            "Rate-Control: no"
+          ],
+          "evidence": "documented"
+        }
+      },
+      "limits": [
+        "one driver covers every Profile G conformant recorder, at the cost of per-vendor quirks"
+      ],
+      "sources": [
+        "onvif-profile-g"
+      ]
+    },
+    {
+      "id": "unifi-protect",
+      "name": "UniFi Protect",
+      "productSupport": "none",
+      "vendors": [
+        "ubiquiti"
+      ],
+      "identify": {
+        "tcpPorts": [
+          443,
+          7441,
+          7447
+        ],
+        "http": {
+          "method": "GET",
+          "path": "https://{host}/proxy/protect/integration/v1/cameras",
+          "expect": "JSON list, with an X-API-KEY header"
+        },
+        "evidence": "candidate"
+      },
+      "auth": {
+        "http": "API key (X-API-KEY) or a login session cookie",
+        "rtsp": "token inside the generated stream URL"
+      },
+      "time": {
+        "zone": "utc",
+        "evidence": "candidate"
+      },
+      "channelBase": 0,
+      "interfaces": {
+        "channels": {
+          "method": "GET",
+          "path": "/proxy/protect/integration/v1/cameras",
+          "evidence": "candidate"
+        },
+        "download": {
+          "method": "GET",
+          "path": "/proxy/protect/api/video/export?camera={id}&start={startMs}&end={endMs}",
+          "format": "MP4",
+          "evidence": "candidate"
+        }
+      },
+      "rtsp": {
+        "port": 7441,
+        "live": null,
+        "liveNote": "RTSPS URLs are generated per camera and quality in Protect; they are not derivable from a channel number",
+        "playback": null
+      },
+      "limits": [
+        "HTTPS only",
+        "no RTSP playback: recorded video is exported as MP4 by time range",
+        "not simulated"
+      ],
+      "sources": [
+        "unifi-protect-integration"
+      ]
+    }
+  ],
+  "models": [
+    {
+      "vendor": "hikvision",
+      "model": "DS-8664N",
+      "family": "hikvision-isapi",
+      "channels": 64,
+      "evidence": "verified",
+      "note": "LA31: search, sub/main playback, Scale 2/4/8x"
+    },
+    {
+      "vendor": "hikvision",
+      "model": "DS-9664NI-M8",
+      "family": "hikvision-isapi",
+      "channels": 64,
+      "hddBays": 8,
+      "evidence": "candidate"
+    },
+    {
+      "vendor": "hikvision",
+      "model": "DS-7732NI-M4",
+      "family": "hikvision-isapi",
+      "channels": 32,
+      "hddBays": 4,
+      "evidence": "candidate"
+    },
+    {
+      "vendor": "hikvision",
+      "model": "DS-7616NI-Q2/16P",
+      "family": "hikvision-isapi",
+      "channels": 16,
+      "hddBays": 2,
+      "evidence": "candidate"
+    },
+    {
+      "vendor": "dahua",
+      "model": "DHI-NVR5432-EI",
+      "family": "dahua-cgi",
+      "channels": 32,
+      "hddBays": 4,
+      "evidence": "candidate"
+    },
+    {
+      "vendor": "amcrest",
+      "model": "NV4116E-A2",
+      "family": "dahua-cgi",
+      "channels": 16,
+      "hddBays": 2,
+      "evidence": "candidate"
+    },
+    {
+      "vendor": "uniview",
+      "model": "NVR304-32X",
+      "family": "uniview-lapi",
+      "channels": 32,
+      "hddBays": 4,
+      "evidence": "candidate"
+    },
+    {
+      "vendor": "hanwha",
+      "model": "XRN-1620SB1",
+      "family": "hanwha-sunapi",
+      "channels": 16,
+      "hddBays": 4,
+      "evidence": "candidate"
+    },
+    {
+      "vendor": "reolink",
+      "model": "RLN16-410",
+      "family": "reolink-api",
+      "channels": 16,
+      "hddBays": 2,
+      "evidence": "candidate"
+    },
+    {
+      "vendor": "vigi",
+      "model": "NVR1016H",
+      "family": "vigi-rtsp",
+      "channels": 16,
+      "hddBays": 1,
+      "evidence": "candidate"
+    },
+    {
+      "vendor": "tvt",
+      "model": "TD-3332H2",
+      "family": "tvt-api",
+      "channels": 32,
+      "hddBays": 2,
+      "evidence": "candidate"
+    },
+    {
+      "vendor": "generic",
+      "vendorName": "ONVIF Profile G recorder",
+      "model": "G-REC-16",
+      "family": "onvif-profile-g",
+      "channels": 16,
+      "hddBays": 2,
+      "evidence": "candidate",
+      "note": "generic stand-in used by the simulator"
+    }
+  ],
+  "counts": {
+    "families": 9,
+    "models": 12,
+    "evidence": {
+      "verified": 11,
+      "documented": 31,
+      "candidate": 25
+    }
+  }
+}

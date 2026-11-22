@@ -1,0 +1,138 @@
+# 瘦底座叠加层（H2Z OS 用）：compose.yaml 是完整栈（Orange Pi / NAS / 开发机一直在用，这个文件**不影响它们**——
+# 它们不加载这个文件，compose.yaml 和改造前逐字节一致，有 scripts/compose-matrix.test.mjs 守着）。
+# 开发计划：docs/DEV-PLAN-2026-11-04-LEAN-BASE-PACKS.md。
+#
+# 底座 = 本机 HDMI 本地控制台能展示和操作的全部功能；emqx / AI / 远程接入 / 车辆检测做成扩展包，装了才起：
+#   COMPOSE_FILE=compose.yaml:compose.lean.yaml[:compose.pack-<包>.yaml …]   COMPOSE_PROFILES=recorder[,<包>…]
+#   包：iot（emqx）、ai（ai-server、h2z-api、nodered-bridge、nodered）、vision（yolo，要先有 iot）
+#   远程接入（tailscale、tailscale-cli）是底座自带的（2026-11-08 起，不再是扩展包）：装好就有，默认不登录、不连任何网络；
+#   在 IOC 后台「设备与系统 → 远程接入」填授权密钥登录、点开关启用，host-agent 经 tailscale CLI 完成（接口 /v1/tailscale/*）
+#   例：COMPOSE_FILE=compose.yaml:compose.lean.yaml:compose.pack-iot.yaml  COMPOSE_PROFILES=recorder,iot
+# 每个包的 compose.pack-<包>.yaml 把 backend 和这个包接上（环境变量 / depends_on）；全装上的接线和 compose.yaml 里的一样。
+# 要 docker compose ≥ 2.24.4（!override / !reset）。
+#
+# 运动索引（recorder-motion + TDengine）：瘦底座里搁置——放进 motion profile，H2Z OS 不会开它；
+# 已经在跑它的板子用 compose.yaml，不受影响。后端（apps/security）看到没配 RECORDER_MOTION_URL 就把运动索引整个关掉。
+services:
+  # ---- 扩展包的服务：默认不起 ----
+  emqx:
+    profiles: !override [iot]
+  ai-server:
+    profiles: !override [ai]
+  h2z-api:
+    profiles: !override [ai]
+  nodered-bridge:
+    profiles: !override [ai]
+  nodered:
+    profiles: !override [ai]
+  # yolo 本来就在 vision profile 里（compose.yaml），这里不动
+  # ---- 运动索引搁置：不起 ----
+  recorder-motion:
+    profiles: !override [motion]
+  tdengine:
+    profiles: !override [motion]
+
+  # ---- backend 去掉对 emqx / h2z-api 的依赖和 MQTT / H2Z / 运动索引的环境变量（包装好后由 compose.pack-<包>.yaml 接回来）----
+  backend:
+    depends_on: !override
+      secrets-init: {condition: service_completed_successfully}
+      recorder-config-init: {condition: service_completed_successfully}
+      host-network: {condition: service_started}
+      host-agent: {condition: service_started}
+      postgres: {condition: service_healthy}
+      ioc-storage-init: {condition: service_completed_successfully}
+    environment:
+      # H2Z OS（新装机）缺省不按 CPU 拒绝开画面、不做刚起画面的预留：先保证 32 分屏等功能全部可用（2026-11-06 负责人决策），
+      # 只剩 IOC_VIEW_MAX 的路数上限。要保护录像时在 .env 写 IOC_VIEW_TARGET_CPU=0.95（0.95–1 之间），再 docker compose up -d backend。
+      IOC_VIEW_TARGET_CPU: ${IOC_VIEW_TARGET_CPU:-off}
+      # 局域网本地登录（方案 A）：缺省仍是 compose.yaml 的 none；.env 写 IOC_AUTH=token 开启（docs/link/edge-upgrade-and-identity.md 第 5 节）
+      IOC_AUTH: ${IOC_AUTH:-none}
+      IOC_MQTT_URL: !reset null
+      MQTT_BROKER_URL: !reset null
+      MQTT_USERNAME: !reset null
+      MQTT_PASSWORD: !reset null
+      IOC_H2Z_URL: !reset null
+      IOC_H2Z_TOKEN_FILE: !reset null
+      RECORDER_MOTION_URL: !reset null
+      RECORDER_SITE: !reset null
+
+  # ---- host-agent 保留对 tailscale-cli 的依赖（远程接入是底座自带的，和板子的 compose.yaml 一样）----
+  # ---- 并且打开「扩展包」接口（/v1/packs*，docs/PACKS-API.md）：板子的 compose.yaml 没有这些，它们的 host-agent 回 404 no route ----
+  host-agent:
+    environment:
+      # host-agent.mjs 是 bind mount：值变了 docker compose up -d 才会重建容器用上新脚本（没装 Tailscale 时状态回 installed:false；packs = 扩展包接口）
+      H2Z_AGENT_FEATURES: l2-scan,vlans,metrics,camera-discover,multiport,system,upgrade,kiosk,tailscale-optional,packs,link
+      H2Z_PACKS: '1'
+      # iroh 边缘：host-agent 汇总局域网地址和边缘状态（GET /v1/link），目录 = edge-link 的数据卷
+      H2Z_LINK_DIR: /edge-link
+      H2Z_LINK_HTTP_BIND: ${HTTP_BIND:-127.0.0.1}
+      H2Z_LINK_HTTP_PORT: ${HTTP_PORT:-8096}
+      H2Z_LINK_IOC_AUTH: ${IOC_AUTH:-none}
+      H2Z_LINK_IROH_PORT: ${H2Z_IROH_PORT:-11204}
+      # 对外网页入口是否要登录（nginx auth_request）：host-agent 据此给「局域网网页没登录」警示
+      H2Z_LINK_LAN_AUTH: ${H2Z_LAN_AUTH:-on}
+    volumes:
+      - edge-link-data:/edge-link
+      - ./scripts/packs.mjs:/agent/packs.mjs:ro
+      - ./config/packs.catalog.json:/agent/packs.catalog.json:ro
+      # 上传 / U 盘暂存的 .h2zpack 和每个包的安装进度（H2Z OS 上链接到数据盘 /data/h2z-packs；别的机器上只是个空目录）
+      - /var/lib/h2z/packs:/packs
+
+  # ---- 网页三个入口（config/nginx-lan，契约 §13.2，和 docker2/compose.yaml 一致）：80 = 对外（H2Z_LAN_AUTH=on 缺省时要登录，沿用 compose.yaml 的发布）；
+  # 81 = 内部（edge-link 上游，不发布）；82 = 本机屏幕（只发布 127.0.0.1:LOCAL_HTTP_PORT，不登录）。板子的 compose.yaml 不加载这个文件，一个字不变。
+  # 升级顺序：先 backend（要有 GET /account/check）后 security；backend 未更新时 .env 写 H2Z_LAN_AUTH=off 急救（docs/link/lan-web-login.md）。
+  web:
+    ports:
+      - '127.0.0.1:${LOCAL_HTTP_PORT:-8097}:82'
+    volumes:
+      - ./config/nginx-lan/default.conf:/etc/nginx/conf.d/default.conf:ro
+      - ./config/nginx-lan/server-common.inc:/etc/nginx/h2z/server-common.inc:ro
+      - ./config/nginx-lan/locations.inc:/etc/nginx/h2z/locations.inc:ro
+      - ./config/nginx-lan/api-proxy.inc:/etc/nginx/h2z/api-proxy.inc:ro
+      - ./config/nginx-lan/lan-auth-${H2Z_LAN_AUTH:-on}.inc:/etc/nginx/h2z/lan-auth.inc:ro
+
+  # ---- iroh 边缘（底座标配，2026-11-14）：只在 H2Z OS（x86）上起；板子的 compose.yaml 不加载这个文件，一个字不变（镜像只有 amd64）----
+  # 外网的手机 / 桌面经 iroh 打洞（打不通走中继）访问本机 web（前端 + /api + /media），视频端到端加密、不走云端流量。
+  # 端点 ID（配对二维码的内容）= 卷 edge-link-data 里 edge.key 的公钥，重启不变。
+  # 状态：容器内 http://edge-link:8099/status（完整）、/summary（nginx 把 /h2z-link/summary 转出来，不含端点 ID）。
+  # 访问控制：未认领锁死，认领后令牌鉴权（docs/link/）；EDGE_OPEN=1 仅过渡期用。
+  edge-link:
+    image: ${EDGE_LINK_IMAGE:-ghcr.io/h2ztech/h2z-edge-link:latest}
+    restart: unless-stopped
+    networks: [security]
+    command: [edge, --upstream, 'http://web:81', --key-file, /data/edge.key, --net, n0]
+    environment:
+      RUST_LOG: ${EDGE_LINK_LOG:-edge_link=info,iroh=warn}
+      # 令牌鉴权：未认领 = 锁死，扫码认领后每个请求要云端令牌。EDGE_OPEN=1 只在过渡期用（升级手册 docs/link/edge-upgrade-and-identity.md）：
+      # 未认领时不设防，后台显著提示「开放模式」，认领成功后自动失效。
+      EDGE_OPEN: ${EDGE_OPEN:-0}
+      # 经中继只放子码流并限速；并发上限；时钟偏差告警 / 拒绝外网（秒）；审计文件轮转（登记在 scripts/log-limits.mjs）
+      H2Z_RELAY_MAX_KBPS: ${H2Z_RELAY_MAX_KBPS:-6000}
+      H2Z_MAX_STREAMS_CONN: ${H2Z_MAX_STREAMS_CONN:-32}
+      H2Z_MAX_STREAMS: ${H2Z_MAX_STREAMS:-128}
+      H2Z_MAX_CONNS: ${H2Z_MAX_CONNS:-32}
+      H2Z_CLOCK_WARN_SEC: '60'
+      H2Z_CLOCK_MAX_SEC: '300'
+      H2Z_AUDIT_MAX_BYTES: '5242880'
+      H2Z_AUDIT_KEEP: '1'
+      # 审计上传云端：云端接口还没有（契约 §12 提案），默认关，审计只在本机
+      H2Z_AUDIT_UPLOAD: ${H2Z_AUDIT_UPLOAD:-0}
+      # 固定 iroh UDP 端口（契约 §13.1）：同局域网的手机直接拨 <录像机局域网 IP>:11204，不打洞、不经中继。
+      H2Z_IROH_PORT: ${H2Z_IROH_PORT:-11204}
+    ports:
+      - '${H2Z_IROH_PORT:-11204}:${H2Z_IROH_PORT:-11204}/udp'
+    volumes: [edge-link-data:/data]
+    # 只等页面壳「已启动」；不等联网：断网时它照常起来，状态显示「连接中 / 离线」，网络恢复后自己连上。
+    depends_on:
+      web: {condition: service_started}
+    healthcheck:
+      test: [CMD, edge-link, health]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+    logging:
+      driver: json-file
+      options: {max-size: '5m', max-file: '2'}
+    mem_limit: 128m
+volumes:
+  edge-link-data: {}

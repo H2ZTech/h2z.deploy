@@ -1,0 +1,51 @@
+{
+  "schema": 1,
+  "_comment": "H2Z OS 扩展包目录（接口约定见 docs/PACKS-API.md）。profile / composeFile 对应 compose.pack-<名>.yaml 和 compose.yaml 里的 profile；volumes = 卸载时清掉的 Docker 卷（不带项目前缀；只列用户数据，底座 host-agent 也挂着的 tailscale-cli / tailscale-socket 不列）。restartsConsole = 装 / 停 / 启 / 卸这个包会重建 backend（本地控制台中断约 1 分钟；有 compose-matrix 测试核对）。sizeBytes 等 M0 实测后补。",
+  "packs": [
+    {
+      "name": "iot",
+      "profile": "iot",
+      "composeFile": "compose.pack-iot.yaml",
+      "title": { "zh-CN": "MQTT 消息服务", "en": "MQTT broker" },
+      "description": {
+        "zh-CN": "物联网设备和 AI 识别结果用的消息总线（EMQX）。",
+        "en": "Message bus for IoT devices and for AI detection results (EMQX)."
+      },
+      "depends": [],
+      "services": ["emqx"],
+      "volumes": ["emqx-data"],
+      "restartsConsole": true,
+      "sizeBytes": null
+    },
+    {
+      "name": "ai",
+      "profile": "ai",
+      "composeFile": "compose.pack-ai.yaml",
+      "title": { "zh-CN": "AI 助手", "en": "AI assistant" },
+      "description": {
+        "zh-CN": "AI 服务、Node-RED 和助手背后的接口。",
+        "en": "AI server, Node-RED and the API behind the assistant."
+      },
+      "depends": [],
+      "services": ["ai-server", "h2z-api", "nodered-bridge", "nodered", "model-gateway"],
+      "volumes": ["registry", "dsh-home", "nodered-data"],
+      "restartsConsole": true,
+      "sizeBytes": null
+    },
+    {
+      "name": "vision",
+      "profile": "vision",
+      "composeFile": "compose.pack-vision.yaml",
+      "title": { "zh-CN": "车辆检测", "en": "Vehicle detection" },
+      "description": {
+        "zh-CN": "对摄像头码流做 YOLO 车辆检测。",
+        "en": "YOLO vehicle detection on camera streams."
+      },
+      "depends": ["iot"],
+      "services": ["yolo"],
+      "volumes": ["yolo-outbox"],
+      "restartsConsole": false,
+      "sizeBytes": null
+    }
+  ]
+}

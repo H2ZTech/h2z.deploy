@@ -1,0 +1,3325 @@
+{
+  "schema": 1,
+  "upstream": {
+    "id": "ch-bas/cctv-camera-database",
+    "license": "CC0-1.0",
+    "commit": "7616a0a0944522159c3daad4a50988b740cb4d65",
+    "sha256": "ba0ad89d351abee33a182c15abc0ecab4a1a50feeb24d27a0ffeb5f14a69ce87",
+    "upstreamGenerated": "2026-10-28",
+    "retrievedAt": "2026-11-04"
+  },
+  "counts": {
+    "vendors": 143,
+    "variants": 213,
+    "streams": 411,
+    "byStatus": {
+      "verified": 3,
+      "documented": 284,
+      "candidate": 124
+    },
+    "pairs": 155
+  },
+  "onvifPorts": [
+    80,
+    8000,
+    8080,
+    2020
+  ],
+  "autoFill": [
+    "tapo",
+    "hikvision",
+    "dahua"
+  ],
+  "sweep": [
+    [
+      "/Streaming/Channels/101",
+      "/Streaming/Channels/102"
+    ],
+    [
+      "/cam/realmonitor?channel=1&subtype=0",
+      "/cam/realmonitor?channel=1&subtype=1"
+    ],
+    [
+      "/stream1",
+      "/stream2"
+    ],
+    [
+      "/h264/ch1/main/av_stream",
+      "/h264/ch1/sub/av_stream"
+    ],
+    [
+      "/media/video1",
+      "/media/video2"
+    ],
+    [
+      "/h264Preview_01_main",
+      "/h264Preview_01_sub"
+    ],
+    [
+      "/live/ch00_0",
+      "/live/ch00_1"
+    ],
+    [
+      "/11",
+      "/12"
+    ]
+  ],
+  "vendors": [
+    {
+      "id": "2n-helios",
+      "name": "2N Helios",
+      "rtspPort": 554,
+      "aliases": [
+        "2n-helios",
+        "2nhelios",
+        "2n helios"
+      ],
+      "match": "word",
+      "autoFill": false,
+      "onvifPorts": [],
+      "pairs": []
+    },
+    {
+      "id": "360-vision",
+      "name": "360 Vision Technology",
+      "rtspPort": 554,
+      "aliases": [
+        "360-vision",
+        "360vision",
+        "360 vision",
+        "360 vision technology"
+      ],
+      "match": "word",
+      "autoFill": false,
+      "onvifPorts": [],
+      "pairs": [
+        {
+          "id": "360-vision.1",
+          "target": "any",
+          "status": "documented",
+          "label": "",
+          "main": "/h264main",
+          "sub": "/h264sub"
+        }
+      ]
+    },
+    {
+      "id": "3svision",
+      "name": "3S Vision",
+      "rtspPort": 554,
+      "aliases": [
+        "3svision",
+        "3s vision"
+      ],
+      "match": "word",
+      "autoFill": false,
+      "onvifPorts": [],
+      "pairs": [
+        {
+          "id": "3svision.1",
+          "target": "any",
+          "status": "candidate",
+          "label": "",
+          "main": "/cam{ch}/h264-1",
+          "sub": "/cam{ch}/h264-2"
+        }
+      ]
+    },
+    {
+      "id": "3xlogic",
+      "name": "3xLOGIC",
+      "rtspPort": 554,
+      "aliases": [
+        "3xlogic"
+      ],
+      "match": "word",
+      "autoFill": false,
+      "onvifPorts": [],
+      "pairs": []
+    },
+    {
+      "id": "abus",
+      "name": "ABUS",
+      "rtspPort": 554,
+      "aliases": [
+        "abus"
+      ],
+      "match": "word",
+      "autoFill": false,
+      "onvifPorts": [],
+      "pairs": [
+        {
+          "id": "abus.1",
+          "target": "any",
+          "status": "candidate",
+          "label": "",
+          "main": "/h264",
+          "sub": "/mpeg4"
+        }
+      ]
+    },
+    {
+      "id": "acti",
+      "name": "ACTi",
+      "rtspPort": 7070,
+      "aliases": [
+        "acti"
+      ],
+      "match": "word",
+      "autoFill": false,
+      "onvifPorts": [],
+      "pairs": [
+        {
+          "id": "acti.1",
+          "target": "any",
+          "status": "documented",
+          "label": "",
+          "main": "/stream1",
+          "sub": "/stream2"
+        }
+      ]
+    },
+    {
+      "id": "adt",
+      "name": "ADT",
+      "rtspPort": 554,
+      "aliases": [
+        "adt"
+      ],
+      "match": "word",
+      "autoFill": false,
+      "onvifPorts": [],
+      "pairs": []
+    },
+    {
+      "id": "advidia",
+      "name": "Advidia",
+      "rtspPort": 554,
+      "aliases": [
+        "advidia"
+      ],
+      "match": "word",
+      "autoFill": false,
+      "onvifPorts": [],
+      "pairs": [
+        {
+          "id": "advidia.1",
+          "target": "any",
+          "status": "candidate",
+          "label": "",
+          "main": "/media/video1",
+          "sub": "/media/video2"
+        }
+      ]
+    },
+    {
+      "id": "airlive",
+      "name": "AirLive",
+      "rtspPort": 554,
+      "aliases": [
+        "airlive"
+      ],
+      "match": "word",
+      "autoFill": false,
+      "onvifPorts": [],
+      "pairs": []
+    },
+    {
+      "id": "akuvox",
+      "name": "Akuvox",
+      "rtspPort": 554,
+      "aliases": [
+        "akuvox"
+      ],
+      "match": "word",
+      "autoFill": false,
+      "onvifPorts": [],
+      "pairs": [
+        {
+          "id": "akuvox.1",
+          "target": "any",
+          "status": "documented",
+          "label": "",
+          "main": "/live/ch00_0",
+          "sub": "/live/ch00_1"
+        }
+      ]
+    },
+    {
+      "id": "alibi",
+      "name": "Alibi",
+      "rtspPort": 554,
+      "aliases": [
+        "alibi"
+      ],
+      "match": "word",
+      "autoFill": false,
+      "onvifPorts": [],
+      "pairs": [
+        {
+          "id": "alibi.1",
+          "target": "any",
+          "status": "candidate",
+          "label": "",
+          "main": "/Streaming/Channels/101",
+          "sub": "/Streaming/Channels/102"
+        }
+      ]
+    },
+    {
+      "id": "allnet",
+      "name": "ALLNET",
+      "rtspPort": 554,
+      "aliases": [
+        "allnet"
+      ],
+      "match": "word",
+      "autoFill": false,
+      "onvifPorts": [],
+      "pairs": []
+    },
+    {
+      "id": "amcrest",
+      "name": "Amcrest",
+      "rtspPort": 554,
+      "aliases": [
+        "amcrest"
+      ],
+      "match": "word",
+      "autoFill": false,
+      "onvifPorts": [],
+      "pairs": [
+        {
+          "id": "amcrest.1",
+          "target": "any",
+          "status": "documented",
+          "label": "",
+          "main": "/cam/realmonitor?channel={ch}&subtype=0",
+          "sub": "/cam/realmonitor?channel={ch}&subtype=1"
+        },
+        {
+          "id": "amcrest.2",
+          "target": "any",
+          "status": "documented",
+          "label": "",
+          "main": "/{ch}/1",
+          "sub": "/{ch}/0"
+        }
+      ]
+    },
+    {
+      "id": "american-dynamics",
+      "name": "American Dynamics",
+      "rtspPort": 554,
+      "aliases": [
+        "american-dynamics",
+        "americandynamics",
+        "american dynamics",
+        "american"
+      ],
+      "match": "word",
+      "autoFill": false,
+      "onvifPorts": [],
+      "pairs": [
+        {
+          "id": "american-dynamics.1",
+          "target": "any",
+          "status": "documented",
+          "label": "",
+          "main": "/primarystream",
+          "sub": "/secondarystream"
+        },
+        {
+          "id": "american-dynamics.2",
+          "target": "any",
+          "status": "documented",
+          "label": "pro-series",
+          "main": "/ufirststream",
+          "sub": "/usecondstream"
+        },
+        {
+          "id": "american-dynamics.4",
+          "target": "any",
+          "status": "documented",
+          "label": "",
+          "main": "/videoStreamId=1",
+          "sub": "/videoStreamId=2"
+        },
+        {
+          "id": "american-dynamics.3",
+          "target": "any",
+          "status": "candidate",
+          "label": "essentials-oem",
+          "main": "/cam/realmonitor?channel=1&subtype=0",
+          "sub": "/cam/realmonitor?channel=1&subtype=1"
+        }
+      ]
+    },
+    {
+      "id": "annke",
+      "name": "ANNKE",
+      "rtspPort": 554,
+      "aliases": [
+        "annke"
+      ],
+      "match": "word",
+      "autoFill": false,
+      "onvifPorts": [],
+      "pairs": [
+        {
+          "id": "annke.1",
+          "target": "any",
+          "status": "documented",
+          "label": "",
+          "main": "/H264/ch{ch}/main/av_stream",
+          "sub": "/H264/ch{ch}/sub/av_stream"
+        },
+        {
+          "id": "annke.3",
+          "target": "any",
+          "status": "documented",
+          "label": "",
+          "main": "/Streaming/Channels/{ch}01",
+          "sub": "/Streaming/Channels/{ch}02"
+        },
+        {
+          "id": "annke.2",
+          "target": "any",
+          "status": "candidate",
+          "label": "",
+          "main": "/H265/ch{ch}/main/av_stream",
+          "sub": "/H265/ch{ch}/sub/av_stream"
+        }
+      ]
+    },
+    {
+      "id": "anpviz",
+      "name": "Anpviz",
+      "rtspPort": 554,
+      "aliases": [
+        "anpviz"
+      ],
+      "match": "word",
+      "autoFill": false,
+      "onvifPorts": [],
+      "pairs": [
+        {
+          "id": "anpviz.1",
+          "target": "any",
+          "status": "candidate",
+          "label": "",
+          "main": "/Streaming/Channels/101",
+          "sub": "/Streaming/Channels/102"
+        }
+      ]
+    },
+    {
+      "id": "arecont",
+      "name": "Arecont Vision",
+      "rtspPort": 554,
+      "aliases": [
+        "arecont",
+        "arecont vision"
+      ],
+      "match": "word",
+      "autoFill": false,
+      "onvifPorts": [],
+      "pairs": [
+        {
+          "id": "arecont.1",
+          "target": "any",
+          "status": "documented",
+          "label": "",
+          "main": "/h264.sdp?res=full&doublescan=0&ssn=1",
+          "sub": "/h264.sdp?res=half&doublescan=0&ssn=2"
+        },
+        {
+          "id": "arecont.3",
+          "target": "any",
+          "status": "documented",
+          "label": "contera",
+          "main": "/stream1_{ch}",
+          "sub": "/stream2_{ch}"
+        }
+      ]
+    },
+    {
+      "id": "avertx",
+      "name": "AvertX",
+      "rtspPort": 554,
+      "aliases": [
+        "avertx"
+      ],
+      "match": "word",
+      "autoFill": false,
+      "onvifPorts": [],
+      "pairs": [
+        {
+          "id": "avertx.1",
+          "target": "any",
+          "status": "candidate",
+          "label": "",
+          "main": "/h264",
+          "sub": "/h264_2"
+        }
+      ]
+    },
+    {
+      "id": "avigilon",
+      "name": "Avigilon",
+      "rtspPort": 554,
+      "aliases": [
+        "avigilon"
+      ],
+      "match": "word",
+      "autoFill": false,
+      "onvifPorts": [],
+      "pairs": [
+        {
+          "id": "avigilon.1",
+          "target": "any",
+          "status": "candidate",
+          "label": "",
+          "main": "/defaultPrimary?streamType=u",
+          "sub": "/defaultSecondary?streamType=u"
+        }
+      ]
+    },
+    {
+      "id": "avycon",
+      "name": "AVYCON",
+      "rtspPort": 554,
+      "aliases": [
+        "avycon"
+      ],
+      "match": "word",
+      "autoFill": false,
+      "onvifPorts": [],
+      "pairs": [
+        {
+          "id": "avycon.1",
+          "target": "any",
+          "status": "documented",
+          "label": "",
+          "main": "/rtsp/streaming?channel=01&subtype=0",
+          "sub": "/rtsp/streaming?channel=01&subtype=1"
+        }
+      ]
+    },
+    {
+      "id": "axis",
+      "name": "Axis Communications",
+      "rtspPort": 554,
+      "aliases": [
+        "axis",
+        "axis communications"
+      ],
+      "match": "word",
+      "autoFill": false,
+      "onvifPorts": [],
+      "pairs": [
+        {
+          "id": "axis.1",
+          "target": "any",
+          "status": "documented",
+          "label": "",
+          "main": "/axis-media/media.amp",
+          "sub": "/axis-media/media.amp?videocodec=h264&resolution=640x480"
+        }
+      ]
+    },
+    {
+      "id": "beward",
+      "name": "BEWARD",
+      "rtspPort": 554,
+      "aliases": [
+        "beward"
+      ],
+      "match": "word",
+      "autoFill": false,
+      "onvifPorts": [],
+      "pairs": [
+        {
+          "id": "beward.1",
+          "target": "any",
+          "status": "documented",
+          "label": "",
+          "main": "/av0_0",
+          "sub": "/av0_1"
+        },
+        {
+          "id": "beward.2",
+          "target": "any",
+          "status": "documented",
+          "label": "",
+          "main": "/main",
+          "sub": "/sub"
+        },
+        {
+          "id": "beward.3",
+          "target": "any",
+          "status": "documented",
+          "label": "",
+          "main": "/h264",
+          "sub": "/h264_{ch}"
+        }
+      ]
+    },
+    {
+      "id": "boavision",
+      "name": "Boavision",
+      "rtspPort": 554,
+      "aliases": [
+        "boavision"
+      ],
+      "match": "word",
+      "autoFill": false,
+      "onvifPorts": [],
+      "pairs": [
+        {
+          "id": "boavision.1",
+          "target": "any",
+          "status": "candidate",
+          "label": "",
+          "main": "/11",
+          "sub": "/12"
+        }
+      ]
+    },
+    {
+      "id": "bolin",
+      "name": "Bolin Technology",
+      "rtspPort": 554,
+      "aliases": [
+        "bolin",
+        "bolin technology"
+      ],
+      "match": "word",
+      "autoFill": false,
+      "onvifPorts": [],
+      "pairs": [
+        {
+          "id": "bolin.1",
+          "target": "any",
+          "status": "documented",
+          "label": "",
+          "main": "/media/video1",
+          "sub": "/media/video2"
+        }
+      ]
+    },
+    {
+      "id": "bosch",
+      "name": "Bosch Security Systems",
+      "rtspPort": 554,
+      "aliases": [
+        "bosch",
+        "bosch security systems"
+      ],
+      "match": "word",
+      "autoFill": false,
+      "onvifPorts": [],
+      "pairs": [
+        {
+          "id": "bosch.1",
+          "target": "any",
+          "status": "documented",
+          "label": "",
+          "main": "/?inst=1",
+          "sub": "/?inst=2"
+        }
+      ]
+    },
+    {
+      "id": "brickcom",
+      "name": "Brickcom",
+      "rtspPort": 554,
+      "aliases": [
+        "brickcom"
+      ],
+      "match": "word",
+      "autoFill": false,
+      "onvifPorts": [],
+      "pairs": [
+        {
+          "id": "brickcom.1",
+          "target": "any",
+          "status": "documented",
+          "label": "",
+          "main": "/channel1",
+          "sub": "/channel2"
+        }
+      ]
+    },
+    {
+      "id": "camius",
+      "name": "Camius",
+      "rtspPort": 80,
+      "aliases": [
+        "camius"
+      ],
+      "match": "word",
+      "autoFill": false,
+      "onvifPorts": [],
+      "pairs": [
+        {
+          "id": "camius.1",
+          "target": "any",
+          "status": "documented",
+          "label": "",
+          "main": "/rtsp/streaming?channel={ch}&subtype=0",
+          "sub": "/rtsp/streaming?channel={ch}&subtype=1"
+        },
+        {
+          "id": "camius.2",
+          "target": "any",
+          "status": "documented",
+          "label": "",
+          "main": "/ch01/0",
+          "sub": "/ch01/1"
+        }
+      ]
+    },
+    {
+      "id": "canon",
+      "name": "Canon",
+      "rtspPort": 554,
+      "aliases": [
+        "canon"
+      ],
+      "match": "word",
+      "autoFill": false,
+      "onvifPorts": [],
+      "pairs": [
+        {
+          "id": "canon.1",
+          "target": "any",
+          "status": "documented",
+          "label": "",
+          "main": "/rtpstream/config1=r",
+          "sub": "/rtpstream/config2=r"
+        }
+      ]
+    },
+    {
+      "id": "cisco",
+      "name": "Cisco",
+      "rtspPort": 554,
+      "aliases": [
+        "cisco"
+      ],
+      "match": "word",
+      "autoFill": false,
+      "onvifPorts": [],
+      "pairs": [
+        {
+          "id": "cisco.3",
+          "target": "any",
+          "status": "candidate",
+          "label": "8000-series",
+          "main": "/live.sdp",
+          "sub": "/live2.sdp"
+        }
+      ]
+    },
+    {
+      "id": "clarevision",
+      "name": "ClareVision",
+      "rtspPort": 554,
+      "aliases": [
+        "clarevision"
+      ],
+      "match": "word",
+      "autoFill": false,
+      "onvifPorts": [],
+      "pairs": [
+        {
+          "id": "clarevision.1",
+          "target": "any",
+          "status": "documented",
+          "label": "",
+          "main": "/0",
+          "sub": "/1"
+        }
+      ]
+    },
+    {
+      "id": "comelit",
+      "name": "Comelit",
+      "rtspPort": 554,
+      "aliases": [
+        "comelit"
+      ],
+      "match": "word",
+      "autoFill": false,
+      "onvifPorts": [],
+      "pairs": [
+        {
+          "id": "comelit.1",
+          "target": "any",
+          "status": "documented",
+          "label": "",
+          "main": "/profile1",
+          "sub": "/profile2"
+        }
+      ]
+    },
+    {
+      "id": "compro",
+      "name": "Compro",
+      "rtspPort": 554,
+      "aliases": [
+        "compro"
+      ],
+      "match": "word",
+      "autoFill": false,
+      "onvifPorts": [],
+      "pairs": []
+    },
+    {
+      "id": "costar",
+      "name": "Costar",
+      "rtspPort": 554,
+      "aliases": [
+        "costar"
+      ],
+      "match": "word",
+      "autoFill": false,
+      "onvifPorts": [],
+      "pairs": [
+        {
+          "id": "costar.1",
+          "target": "any",
+          "status": "documented",
+          "label": "",
+          "main": "/trackID=1",
+          "sub": "/trackID=2"
+        }
+      ]
+    },
+    {
+      "id": "cp-plus",
+      "name": "CP Plus",
+      "rtspPort": 554,
+      "aliases": [
+        "cp-plus",
+        "cpplus",
+        "cp plus"
+      ],
+      "match": "word",
+      "autoFill": false,
+      "onvifPorts": [],
+      "pairs": [
+        {
+          "id": "cp-plus.1",
+          "target": "any",
+          "status": "documented",
+          "label": "",
+          "main": "/cam/realmonitor?channel={ch}&subtype=0",
+          "sub": "/cam/realmonitor?channel={ch}&subtype=1"
+        }
+      ]
+    },
+    {
+      "id": "d-link",
+      "name": "D-Link",
+      "rtspPort": 554,
+      "aliases": [
+        "d-link",
+        "dlink",
+        "d link"
+      ],
+      "match": "word",
+      "autoFill": false,
+      "onvifPorts": [],
+      "pairs": []
+    },
+    {
+      "id": "dahua",
+      "name": "Dahua",
+      "rtspPort": 554,
+      "aliases": [
+        "dahua",
+        "大华"
+      ],
+      "match": "substring",
+      "autoFill": true,
+      "pin": "dahua.1",
+      "onvifPorts": [
+        80
+      ],
+      "pairs": [
+        {
+          "id": "dahua.1",
+          "target": "any",
+          "status": "documented",
+          "label": "",
+          "main": "/cam/realmonitor?channel={ch}&subtype=0",
+          "sub": "/cam/realmonitor?channel={ch}&subtype=1"
+        }
+      ]
+    },
+    {
+      "id": "dallmeier",
+      "name": "Dallmeier",
+      "rtspPort": 554,
+      "aliases": [
+        "dallmeier"
+      ],
+      "match": "word",
+      "autoFill": false,
+      "onvifPorts": [],
+      "pairs": [
+        {
+          "id": "dallmeier.1",
+          "target": "any",
+          "status": "documented",
+          "label": "",
+          "main": "/encoder1",
+          "sub": "/encoder2"
+        }
+      ]
+    },
+    {
+      "id": "db-power",
+      "name": "DBPOWER",
+      "rtspPort": 554,
+      "aliases": [
+        "db-power",
+        "dbpower",
+        "db power"
+      ],
+      "match": "word",
+      "autoFill": false,
+      "onvifPorts": [],
+      "pairs": [
+        {
+          "id": "db-power.1",
+          "target": "any",
+          "status": "candidate",
+          "label": "",
+          "main": "/live/ch0",
+          "sub": "/live/ch1"
+        }
+      ]
+    },
+    {
+      "id": "dericam",
+      "name": "Dericam",
+      "rtspPort": 554,
+      "aliases": [
+        "dericam"
+      ],
+      "match": "word",
+      "autoFill": false,
+      "onvifPorts": [],
+      "pairs": [
+        {
+          "id": "dericam.1",
+          "target": "any",
+          "status": "candidate",
+          "label": "",
+          "main": "/11",
+          "sub": "/12"
+        }
+      ]
+    },
+    {
+      "id": "digital-watchdog",
+      "name": "Digital Watchdog",
+      "rtspPort": 554,
+      "aliases": [
+        "digital-watchdog",
+        "digitalwatchdog",
+        "digital watchdog"
+      ],
+      "match": "word",
+      "autoFill": false,
+      "onvifPorts": [],
+      "pairs": [
+        {
+          "id": "digital-watchdog.1",
+          "target": "any",
+          "status": "documented",
+          "label": "",
+          "main": "/profile1",
+          "sub": "/profile2"
+        }
+      ]
+    },
+    {
+      "id": "eagle-eye-networks",
+      "name": "Eagle Eye Networks",
+      "rtspPort": 554,
+      "aliases": [
+        "eagle-eye-networks",
+        "eagleeyenetworks",
+        "eagle eye networks",
+        "eagle"
+      ],
+      "match": "word",
+      "autoFill": false,
+      "onvifPorts": [],
+      "pairs": []
+    },
+    {
+      "id": "eneo",
+      "name": "eneo",
+      "rtspPort": 554,
+      "aliases": [
+        "eneo"
+      ],
+      "match": "word",
+      "autoFill": false,
+      "onvifPorts": [],
+      "pairs": [
+        {
+          "id": "eneo.1",
+          "target": "any",
+          "status": "documented",
+          "label": "",
+          "main": "/1/stream1",
+          "sub": "/1/stream2"
+        }
+      ]
+    },
+    {
+      "id": "ernitec",
+      "name": "Ernitec",
+      "rtspPort": 554,
+      "aliases": [
+        "ernitec"
+      ],
+      "match": "word",
+      "autoFill": false,
+      "onvifPorts": [],
+      "pairs": [
+        {
+          "id": "ernitec.1",
+          "target": "any",
+          "status": "documented",
+          "label": "",
+          "main": "/snl/live/1/1",
+          "sub": "/snl/live/1/2"
+        }
+      ]
+    },
+    {
+      "id": "escam",
+      "name": "ESCAM",
+      "rtspPort": 554,
+      "aliases": [
+        "escam"
+      ],
+      "match": "word",
+      "autoFill": false,
+      "onvifPorts": [],
+      "pairs": [
+        {
+          "id": "escam.1",
+          "target": "any",
+          "status": "documented",
+          "label": "",
+          "main": "/live/0/main",
+          "sub": "/live/0/sub"
+        }
+      ]
+    },
+    {
+      "id": "everfocus",
+      "name": "EverFocus",
+      "rtspPort": 554,
+      "aliases": [
+        "everfocus"
+      ],
+      "match": "word",
+      "autoFill": false,
+      "onvifPorts": [],
+      "pairs": [
+        {
+          "id": "everfocus.1",
+          "target": "any",
+          "status": "candidate",
+          "label": "",
+          "main": "/ch01/0",
+          "sub": "/ch01/1"
+        }
+      ]
+    },
+    {
+      "id": "eversecu",
+      "name": "EVERSECU",
+      "rtspPort": 10554,
+      "aliases": [
+        "eversecu"
+      ],
+      "match": "word",
+      "autoFill": false,
+      "onvifPorts": [],
+      "pairs": []
+    },
+    {
+      "id": "ezviz",
+      "name": "EZVIZ",
+      "rtspPort": 554,
+      "aliases": [
+        "ezviz"
+      ],
+      "match": "word",
+      "autoFill": false,
+      "onvifPorts": [],
+      "pairs": []
+    },
+    {
+      "id": "fanvil",
+      "name": "Fanvil",
+      "rtspPort": 554,
+      "aliases": [
+        "fanvil"
+      ],
+      "match": "word",
+      "autoFill": false,
+      "onvifPorts": [],
+      "pairs": []
+    },
+    {
+      "id": "flir",
+      "name": "FLIR Systems",
+      "rtspPort": 554,
+      "aliases": [
+        "flir",
+        "flir systems"
+      ],
+      "match": "word",
+      "autoFill": false,
+      "onvifPorts": [],
+      "pairs": [
+        {
+          "id": "flir.1",
+          "target": "any",
+          "status": "documented",
+          "label": "",
+          "main": "/stream1",
+          "sub": "/stream2"
+        },
+        {
+          "id": "flir.2",
+          "target": "any",
+          "status": "documented",
+          "label": "",
+          "main": "/ch0",
+          "sub": "/ch1"
+        },
+        {
+          "id": "flir.3",
+          "target": "any",
+          "status": "documented",
+          "label": "",
+          "main": "/stream1/sensor1",
+          "sub": "/stream2/sensor1"
+        }
+      ]
+    },
+    {
+      "id": "foscam",
+      "name": "Foscam",
+      "rtspPort": 88,
+      "aliases": [
+        "foscam"
+      ],
+      "match": "word",
+      "autoFill": false,
+      "onvifPorts": [],
+      "pairs": [
+        {
+          "id": "foscam.1",
+          "target": "any",
+          "status": "documented",
+          "label": "",
+          "main": "/videoMain",
+          "sub": "/videoSub"
+        }
+      ]
+    },
+    {
+      "id": "genie",
+      "name": "Genie",
+      "rtspPort": 554,
+      "aliases": [
+        "genie"
+      ],
+      "match": "word",
+      "autoFill": false,
+      "onvifPorts": [],
+      "pairs": [
+        {
+          "id": "genie.1",
+          "target": "any",
+          "status": "documented",
+          "label": "",
+          "main": "/profile1",
+          "sub": "/profile2"
+        }
+      ]
+    },
+    {
+      "id": "geovision",
+      "name": "GeoVision",
+      "rtspPort": 8554,
+      "aliases": [
+        "geovision"
+      ],
+      "match": "word",
+      "autoFill": false,
+      "onvifPorts": [],
+      "pairs": []
+    },
+    {
+      "id": "grandstream",
+      "name": "Grandstream",
+      "rtspPort": 554,
+      "aliases": [
+        "grandstream"
+      ],
+      "match": "word",
+      "autoFill": false,
+      "onvifPorts": [],
+      "pairs": [
+        {
+          "id": "grandstream.1",
+          "target": "any",
+          "status": "candidate",
+          "label": "",
+          "main": "/0",
+          "sub": "/4"
+        }
+      ]
+    },
+    {
+      "id": "hanwha",
+      "name": "Hanwha Vision",
+      "rtspPort": 554,
+      "aliases": [
+        "hanwha",
+        "hanwha vision"
+      ],
+      "match": "word",
+      "autoFill": false,
+      "onvifPorts": [],
+      "pairs": [
+        {
+          "id": "hanwha.1",
+          "target": "any",
+          "status": "documented",
+          "label": "",
+          "main": "/profile2/media.smp",
+          "sub": "/profile3/media.smp"
+        }
+      ]
+    },
+    {
+      "id": "hikvision",
+      "name": "Hikvision",
+      "rtspPort": 554,
+      "aliases": [
+        "hikvision",
+        "海康"
+      ],
+      "match": "substring",
+      "autoFill": true,
+      "pin": "hikvision.1",
+      "onvifPorts": [
+        80
+      ],
+      "factory": {
+        "accounts": [
+          {
+            "username": "admin",
+            "password": "12345",
+            "scope": "老固件（IPC V5.3.0 / NVR V3.3.0 之前）；之后的固件没有默认口令，要先激活",
+            "status": "candidate"
+          }
+        ],
+        "activation": {
+          "required": "new-firmware",
+          "methods": [
+            "web",
+            "sadp",
+            "client"
+          ],
+          "minPasswordLength": 8,
+          "recipes": [
+            {
+              "id": "hikvision.sadp-udp",
+              "method": "sadp",
+              "status": "candidate"
+            }
+          ],
+          "status": "documented"
+        },
+        "lock": {
+          "maxAttempts": 7,
+          "lockMinutes": 30,
+          "status": "candidate"
+        },
+        "factoryIps": [
+          "192.168.1.64",
+          "192.0.0.64"
+        ]
+      },
+      "pairs": [
+        {
+          "id": "hikvision.1",
+          "target": "any",
+          "status": "documented",
+          "label": "",
+          "main": "/Streaming/Channels/{ch}01",
+          "sub": "/Streaming/Channels/{ch}02"
+        },
+        {
+          "id": "hikvision.2",
+          "target": "any",
+          "status": "documented",
+          "label": "",
+          "main": "/ISAPI/Streaming/channels/{ch}01",
+          "sub": "/ISAPI/Streaming/channels/{ch}02"
+        }
+      ]
+    },
+    {
+      "id": "hilook",
+      "name": "HiLook",
+      "rtspPort": 554,
+      "aliases": [
+        "hilook"
+      ],
+      "match": "word",
+      "autoFill": false,
+      "onvifPorts": [],
+      "pairs": [
+        {
+          "id": "hilook.1",
+          "target": "any",
+          "status": "documented",
+          "label": "",
+          "main": "/Streaming/Channels/{ch}01",
+          "sub": "/Streaming/Channels/{ch}02"
+        }
+      ]
+    },
+    {
+      "id": "hiseeu",
+      "name": "Hiseeu",
+      "rtspPort": 80,
+      "aliases": [
+        "hiseeu"
+      ],
+      "match": "word",
+      "autoFill": false,
+      "onvifPorts": [],
+      "pairs": []
+    },
+    {
+      "id": "hiwatch",
+      "name": "HiWatch",
+      "rtspPort": 554,
+      "aliases": [
+        "hiwatch"
+      ],
+      "match": "word",
+      "autoFill": false,
+      "onvifPorts": [],
+      "pairs": [
+        {
+          "id": "hiwatch.1",
+          "target": "any",
+          "status": "documented",
+          "label": "",
+          "main": "/Streaming/Channels/{ch}01",
+          "sub": "/Streaming/Channels/{ch}02"
+        },
+        {
+          "id": "hiwatch.2",
+          "target": "any",
+          "status": "documented",
+          "label": "",
+          "main": "/ISAPI/Streaming/Channels/{ch}01",
+          "sub": "/ISAPI/Streaming/Channels/{ch}02"
+        }
+      ]
+    },
+    {
+      "id": "holowits",
+      "name": "HOLOWITS",
+      "rtspPort": 554,
+      "aliases": [
+        "holowits"
+      ],
+      "match": "word",
+      "autoFill": false,
+      "onvifPorts": [],
+      "pairs": [
+        {
+          "id": "holowits.1",
+          "target": "any",
+          "status": "documented",
+          "label": "",
+          "main": "/LiveMedia/ch1/Media1",
+          "sub": "/LiveMedia/ch1/Media2"
+        }
+      ]
+    },
+    {
+      "id": "honeywell",
+      "name": "Honeywell",
+      "rtspPort": 554,
+      "aliases": [
+        "honeywell"
+      ],
+      "match": "word",
+      "autoFill": false,
+      "onvifPorts": [],
+      "pairs": [
+        {
+          "id": "honeywell.1",
+          "target": "any",
+          "status": "documented",
+          "label": "",
+          "main": "/live1s1.sdp",
+          "sub": "/live1s2.sdp"
+        },
+        {
+          "id": "honeywell.2",
+          "target": "any",
+          "status": "documented",
+          "label": "",
+          "main": "/live/1/1",
+          "sub": "/live/1/2"
+        },
+        {
+          "id": "honeywell.3",
+          "target": "any",
+          "status": "documented",
+          "label": "",
+          "main": "/cam/realmonitor?channel=1&subtype=0",
+          "sub": "/cam/realmonitor?channel=1&subtype=1"
+        }
+      ]
+    },
+    {
+      "id": "hosafe",
+      "name": "HOSAFE",
+      "rtspPort": 554,
+      "aliases": [
+        "hosafe"
+      ],
+      "match": "word",
+      "autoFill": false,
+      "onvifPorts": [],
+      "pairs": [
+        {
+          "id": "hosafe.1",
+          "target": "any",
+          "status": "documented",
+          "label": "",
+          "main": "/11",
+          "sub": "/12"
+        }
+      ]
+    },
+    {
+      "id": "i-pro",
+      "name": "i-PRO",
+      "rtspPort": 554,
+      "aliases": [
+        "i-pro",
+        "ipro",
+        "i pro"
+      ],
+      "match": "word",
+      "autoFill": false,
+      "onvifPorts": [],
+      "pairs": [
+        {
+          "id": "i-pro.1",
+          "target": "any",
+          "status": "documented",
+          "label": "",
+          "main": "/Src/MediaInput/stream_1",
+          "sub": "/Src/MediaInput/stream_2"
+        }
+      ]
+    },
+    {
+      "id": "idis",
+      "name": "IDIS",
+      "rtspPort": 554,
+      "aliases": [
+        "idis"
+      ],
+      "match": "word",
+      "autoFill": false,
+      "onvifPorts": [],
+      "pairs": [
+        {
+          "id": "idis.1",
+          "target": "any",
+          "status": "documented",
+          "label": "",
+          "main": "/trackID=1",
+          "sub": "/trackID=2"
+        }
+      ]
+    },
+    {
+      "id": "iegeek",
+      "name": "ieGeek",
+      "rtspPort": 554,
+      "aliases": [
+        "iegeek"
+      ],
+      "match": "word",
+      "autoFill": false,
+      "onvifPorts": [],
+      "pairs": [
+        {
+          "id": "iegeek.1",
+          "target": "any",
+          "status": "documented",
+          "label": "",
+          "main": "/11",
+          "sub": "/12"
+        }
+      ]
+    },
+    {
+      "id": "illustra",
+      "name": "Illustra",
+      "rtspPort": 554,
+      "aliases": [
+        "illustra"
+      ],
+      "match": "word",
+      "autoFill": false,
+      "onvifPorts": [],
+      "pairs": [
+        {
+          "id": "illustra.1",
+          "target": "any",
+          "status": "documented",
+          "label": "",
+          "main": "/videoStreamId=1",
+          "sub": "/videoStreamId=2"
+        }
+      ]
+    },
+    {
+      "id": "instar",
+      "name": "INSTAR",
+      "rtspPort": 554,
+      "aliases": [
+        "instar"
+      ],
+      "match": "word",
+      "autoFill": false,
+      "onvifPorts": [],
+      "pairs": [
+        {
+          "id": "instar.1",
+          "target": "any",
+          "status": "documented",
+          "label": "",
+          "main": "/livestream/11",
+          "sub": "/livestream/12"
+        },
+        {
+          "id": "instar.2",
+          "target": "any",
+          "status": "documented",
+          "label": "",
+          "main": "/11",
+          "sub": "/12"
+        }
+      ]
+    },
+    {
+      "id": "intelbras",
+      "name": "Intelbras",
+      "rtspPort": 554,
+      "aliases": [
+        "intelbras"
+      ],
+      "match": "word",
+      "autoFill": false,
+      "onvifPorts": [],
+      "pairs": [
+        {
+          "id": "intelbras.1",
+          "target": "any",
+          "status": "candidate",
+          "label": "",
+          "main": "/cam/realmonitor?channel={ch}&subtype=0",
+          "sub": "/cam/realmonitor?channel={ch}&subtype=1"
+        }
+      ]
+    },
+    {
+      "id": "interlogix",
+      "name": "Interlogix",
+      "rtspPort": 554,
+      "aliases": [
+        "interlogix"
+      ],
+      "match": "word",
+      "autoFill": false,
+      "onvifPorts": [],
+      "pairs": []
+    },
+    {
+      "id": "iq-eye",
+      "name": "IQeye",
+      "rtspPort": 554,
+      "aliases": [
+        "iq-eye",
+        "iqeye",
+        "iq eye"
+      ],
+      "match": "word",
+      "autoFill": false,
+      "onvifPorts": [],
+      "pairs": [
+        {
+          "id": "iq-eye.1",
+          "target": "any",
+          "status": "candidate",
+          "label": "",
+          "main": "/now.mp4&res=high",
+          "sub": "/now.mp4&res=low"
+        }
+      ]
+    },
+    {
+      "id": "iqinvision",
+      "name": "IQinVision",
+      "rtspPort": 554,
+      "aliases": [
+        "iqinvision"
+      ],
+      "match": "word",
+      "autoFill": false,
+      "onvifPorts": [],
+      "pairs": []
+    },
+    {
+      "id": "jidetech",
+      "name": "JideTech",
+      "rtspPort": 554,
+      "aliases": [
+        "jidetech"
+      ],
+      "match": "word",
+      "autoFill": false,
+      "onvifPorts": [],
+      "pairs": [
+        {
+          "id": "jidetech.1",
+          "target": "any",
+          "status": "documented",
+          "label": "",
+          "main": "/stream0",
+          "sub": "/stream1"
+        },
+        {
+          "id": "jidetech.2",
+          "target": "any",
+          "status": "candidate",
+          "label": "video-only",
+          "main": "/video1",
+          "sub": "/video2"
+        }
+      ]
+    },
+    {
+      "id": "jvc",
+      "name": "JVC",
+      "rtspPort": 554,
+      "aliases": [
+        "jvc"
+      ],
+      "match": "word",
+      "autoFill": false,
+      "onvifPorts": [],
+      "pairs": [
+        {
+          "id": "jvc.1",
+          "target": "any",
+          "status": "candidate",
+          "label": "",
+          "main": "/PSIA/Streaming/channels/0",
+          "sub": "/PSIA/Streaming/channels/1"
+        }
+      ]
+    },
+    {
+      "id": "kedacom",
+      "name": "Kedacom",
+      "rtspPort": 554,
+      "aliases": [
+        "kedacom"
+      ],
+      "match": "word",
+      "autoFill": false,
+      "onvifPorts": [],
+      "pairs": [
+        {
+          "id": "kedacom.1",
+          "target": "any",
+          "status": "documented",
+          "label": "",
+          "main": "/id=0",
+          "sub": "/id=1"
+        }
+      ]
+    },
+    {
+      "id": "levelone",
+      "name": "LevelOne",
+      "rtspPort": 554,
+      "aliases": [
+        "levelone"
+      ],
+      "match": "word",
+      "autoFill": false,
+      "onvifPorts": [],
+      "pairs": [
+        {
+          "id": "levelone.2",
+          "target": "any",
+          "status": "documented",
+          "label": "",
+          "main": "/live1.sdp",
+          "sub": "/live2.sdp"
+        }
+      ]
+    },
+    {
+      "id": "lilin",
+      "name": "LILIN",
+      "rtspPort": 554,
+      "aliases": [
+        "lilin"
+      ],
+      "match": "word",
+      "autoFill": false,
+      "onvifPorts": [],
+      "pairs": [
+        {
+          "id": "lilin.1",
+          "target": "any",
+          "status": "documented",
+          "label": "",
+          "main": "/stream0",
+          "sub": "/stream1"
+        }
+      ]
+    },
+    {
+      "id": "longse",
+      "name": "Longse",
+      "rtspPort": 554,
+      "aliases": [
+        "longse"
+      ],
+      "match": "word",
+      "autoFill": false,
+      "onvifPorts": [],
+      "pairs": [
+        {
+          "id": "longse.1",
+          "target": "any",
+          "status": "documented",
+          "label": "",
+          "main": "/0",
+          "sub": "/1"
+        }
+      ]
+    },
+    {
+      "id": "lorex",
+      "name": "Lorex",
+      "rtspPort": 554,
+      "aliases": [
+        "lorex"
+      ],
+      "match": "word",
+      "autoFill": false,
+      "onvifPorts": [],
+      "pairs": [
+        {
+          "id": "lorex.1",
+          "target": "any",
+          "status": "candidate",
+          "label": "",
+          "main": "/cam/realmonitor?channel={ch}&subtype=0",
+          "sub": "/cam/realmonitor?channel={ch}&subtype=1"
+        }
+      ]
+    },
+    {
+      "id": "loryta",
+      "name": "Loryta",
+      "rtspPort": 554,
+      "aliases": [
+        "loryta"
+      ],
+      "match": "word",
+      "autoFill": false,
+      "onvifPorts": [],
+      "pairs": [
+        {
+          "id": "loryta.1",
+          "target": "any",
+          "status": "candidate",
+          "label": "",
+          "main": "/cam/realmonitor?channel={ch}&subtype=0",
+          "sub": "/cam/realmonitor?channel={ch}&subtype=1"
+        }
+      ]
+    },
+    {
+      "id": "lts",
+      "name": "LTS",
+      "rtspPort": 554,
+      "aliases": [
+        "lts"
+      ],
+      "match": "word",
+      "autoFill": false,
+      "onvifPorts": [],
+      "pairs": [
+        {
+          "id": "lts.1",
+          "target": "any",
+          "status": "documented",
+          "label": "",
+          "main": "/Streaming/Channels/101",
+          "sub": "/Streaming/Channels/102"
+        }
+      ]
+    },
+    {
+      "id": "luma",
+      "name": "Luma",
+      "rtspPort": 554,
+      "aliases": [
+        "luma"
+      ],
+      "match": "word",
+      "autoFill": false,
+      "onvifPorts": [],
+      "pairs": [
+        {
+          "id": "luma.1",
+          "target": "any",
+          "status": "documented",
+          "label": "",
+          "main": "/Streaming/channels/1",
+          "sub": "/Streaming/channels/2"
+        }
+      ]
+    },
+    {
+      "id": "luminys",
+      "name": "Luminys",
+      "rtspPort": 554,
+      "aliases": [
+        "luminys"
+      ],
+      "match": "word",
+      "autoFill": false,
+      "onvifPorts": [],
+      "pairs": [
+        {
+          "id": "luminys.1",
+          "target": "any",
+          "status": "documented",
+          "label": "",
+          "main": "/video/livemedia?Ch={ch}&Streamtype=0",
+          "sub": "/video/livemedia?Ch={ch}&Streamtype=1"
+        }
+      ]
+    },
+    {
+      "id": "lupus",
+      "name": "Lupus Electronics",
+      "rtspPort": 554,
+      "aliases": [
+        "lupus",
+        "lupus electronics"
+      ],
+      "match": "word",
+      "autoFill": false,
+      "onvifPorts": [],
+      "pairs": [
+        {
+          "id": "lupus.1",
+          "target": "any",
+          "status": "documented",
+          "label": "",
+          "main": "/cam/realmonitor?channel=1&subtype=0",
+          "sub": "/cam/realmonitor?channel=1&subtype=1"
+        }
+      ]
+    },
+    {
+      "id": "merit-lilin",
+      "name": "Merit LILIN",
+      "rtspPort": 554,
+      "aliases": [
+        "merit-lilin",
+        "meritlilin",
+        "merit lilin",
+        "merit"
+      ],
+      "match": "word",
+      "autoFill": false,
+      "onvifPorts": [],
+      "pairs": [
+        {
+          "id": "merit-lilin.1",
+          "target": "any",
+          "status": "documented",
+          "label": "",
+          "main": "/stream0",
+          "sub": "/stream1"
+        }
+      ]
+    },
+    {
+      "id": "messoa",
+      "name": "Messoa",
+      "rtspPort": 554,
+      "aliases": [
+        "messoa"
+      ],
+      "match": "word",
+      "autoFill": false,
+      "onvifPorts": [],
+      "pairs": [
+        {
+          "id": "messoa.1",
+          "target": "any",
+          "status": "documented",
+          "label": "",
+          "main": "/stream1",
+          "sub": "/stream2"
+        }
+      ]
+    },
+    {
+      "id": "milesight",
+      "name": "Milesight",
+      "rtspPort": 554,
+      "aliases": [
+        "milesight"
+      ],
+      "match": "word",
+      "autoFill": false,
+      "onvifPorts": [],
+      "pairs": [
+        {
+          "id": "milesight.1",
+          "target": "any",
+          "status": "documented",
+          "label": "",
+          "main": "/main",
+          "sub": "/sub"
+        }
+      ]
+    },
+    {
+      "id": "mobotix",
+      "name": "Mobotix",
+      "rtspPort": 554,
+      "aliases": [
+        "mobotix"
+      ],
+      "match": "word",
+      "autoFill": false,
+      "onvifPorts": [],
+      "pairs": [
+        {
+          "id": "mobotix.2",
+          "target": "any",
+          "status": "documented",
+          "label": "",
+          "main": "/stream/profile0",
+          "sub": "/stream/profile1"
+        },
+        {
+          "id": "mobotix.3",
+          "target": "any",
+          "status": "documented",
+          "label": "",
+          "main": "/h264",
+          "sub": "/h264_2"
+        },
+        {
+          "id": "mobotix.4",
+          "target": "any",
+          "status": "documented",
+          "label": "",
+          "main": "/stream0/mobotix.mxg",
+          "sub": "/stream1/mobotix.mxg"
+        }
+      ]
+    },
+    {
+      "id": "motorola",
+      "name": "Motorola",
+      "rtspPort": 554,
+      "aliases": [
+        "motorola"
+      ],
+      "match": "word",
+      "autoFill": false,
+      "onvifPorts": [],
+      "pairs": [
+        {
+          "id": "motorola.1",
+          "target": "any",
+          "status": "documented",
+          "label": "",
+          "main": "/defaultPrimary?streamType=u",
+          "sub": "/defaultSecondary?streamType=u"
+        }
+      ]
+    },
+    {
+      "id": "neutron",
+      "name": "Neutron",
+      "rtspPort": 554,
+      "aliases": [
+        "neutron"
+      ],
+      "match": "word",
+      "autoFill": false,
+      "onvifPorts": [],
+      "pairs": []
+    },
+    {
+      "id": "night-owl",
+      "name": "Night Owl",
+      "rtspPort": 554,
+      "aliases": [
+        "night-owl",
+        "nightowl",
+        "night owl",
+        "night"
+      ],
+      "match": "word",
+      "autoFill": false,
+      "onvifPorts": [],
+      "pairs": [
+        {
+          "id": "night-owl.1",
+          "target": "any",
+          "status": "documented",
+          "label": "",
+          "main": "/ch{ch2}/0",
+          "sub": "/ch{ch2}/1"
+        }
+      ]
+    },
+    {
+      "id": "nuvico",
+      "name": "Nuvico",
+      "rtspPort": 554,
+      "aliases": [
+        "nuvico"
+      ],
+      "match": "word",
+      "autoFill": false,
+      "onvifPorts": [],
+      "pairs": [
+        {
+          "id": "nuvico.1",
+          "target": "any",
+          "status": "documented",
+          "label": "",
+          "main": "/profile1",
+          "sub": "/profile2"
+        }
+      ]
+    },
+    {
+      "id": "oncam",
+      "name": "Oncam",
+      "rtspPort": 554,
+      "aliases": [
+        "oncam"
+      ],
+      "match": "word",
+      "autoFill": false,
+      "onvifPorts": [],
+      "pairs": [
+        {
+          "id": "oncam.1",
+          "target": "any",
+          "status": "documented",
+          "label": "",
+          "main": "/h264/video.sdp?camera=13",
+          "sub": "/h264/video.sdp?camera=12"
+        }
+      ]
+    },
+    {
+      "id": "panasonic",
+      "name": "Panasonic i-PRO",
+      "rtspPort": 554,
+      "aliases": [
+        "panasonic",
+        "panasonic i-pro"
+      ],
+      "match": "word",
+      "autoFill": false,
+      "onvifPorts": [],
+      "pairs": [
+        {
+          "id": "panasonic.1",
+          "target": "any",
+          "status": "candidate",
+          "label": "",
+          "main": "/Src/MediaInput/stream_1",
+          "sub": "/Src/MediaInput/stream_2"
+        },
+        {
+          "id": "panasonic.2",
+          "target": "any",
+          "status": "candidate",
+          "label": "",
+          "main": "/Src/MediaInput/h264/stream_1",
+          "sub": "/Src/MediaInput/h264/stream_2"
+        },
+        {
+          "id": "panasonic.3",
+          "target": "any",
+          "status": "candidate",
+          "label": "",
+          "main": "/profile1",
+          "sub": "/profile2"
+        }
+      ]
+    },
+    {
+      "id": "pelco",
+      "name": "Pelco",
+      "rtspPort": 554,
+      "aliases": [
+        "pelco"
+      ],
+      "match": "word",
+      "autoFill": false,
+      "onvifPorts": [],
+      "pairs": [
+        {
+          "id": "pelco.1",
+          "target": "any",
+          "status": "documented",
+          "label": "",
+          "main": "/stream1",
+          "sub": "/stream2"
+        }
+      ]
+    },
+    {
+      "id": "planet",
+      "name": "PLANET Technology",
+      "rtspPort": 554,
+      "aliases": [
+        "planet",
+        "planet technology"
+      ],
+      "match": "word",
+      "autoFill": false,
+      "onvifPorts": [],
+      "pairs": [
+        {
+          "id": "planet.1",
+          "target": "any",
+          "status": "documented",
+          "label": "",
+          "main": "/stander/livestream/0/0",
+          "sub": "/stander/livestream/0/1"
+        }
+      ]
+    },
+    {
+      "id": "q-see",
+      "name": "Q-See",
+      "rtspPort": 554,
+      "aliases": [
+        "q-see",
+        "qsee",
+        "q see"
+      ],
+      "match": "word",
+      "autoFill": false,
+      "onvifPorts": [],
+      "pairs": [
+        {
+          "id": "q-see.1",
+          "target": "any",
+          "status": "candidate",
+          "label": "",
+          "main": "/cam/realmonitor?channel={ch}&subtype=0",
+          "sub": "/cam/realmonitor?channel={ch}&subtype=1"
+        }
+      ]
+    },
+    {
+      "id": "reolink",
+      "name": "Reolink",
+      "rtspPort": 554,
+      "aliases": [
+        "reolink"
+      ],
+      "match": "word",
+      "autoFill": false,
+      "onvifPorts": [],
+      "pairs": [
+        {
+          "id": "reolink.1",
+          "target": "any",
+          "status": "documented",
+          "label": "",
+          "main": "/Preview_{ch2}_main",
+          "sub": "/Preview_{ch2}_sub"
+        }
+      ]
+    },
+    {
+      "id": "revotech",
+      "name": "Revotech",
+      "rtspPort": 554,
+      "aliases": [
+        "revotech"
+      ],
+      "match": "word",
+      "autoFill": false,
+      "onvifPorts": [],
+      "pairs": [
+        {
+          "id": "revotech.1",
+          "target": "any",
+          "status": "candidate",
+          "label": "",
+          "main": "/mpeg4",
+          "sub": "/mpeg4cif"
+        }
+      ]
+    },
+    {
+      "id": "rvi",
+      "name": "RVi",
+      "rtspPort": 554,
+      "aliases": [
+        "rvi"
+      ],
+      "match": "word",
+      "autoFill": false,
+      "onvifPorts": [],
+      "pairs": [
+        {
+          "id": "rvi.1",
+          "target": "any",
+          "status": "candidate",
+          "label": "",
+          "main": "/RVi/1/1",
+          "sub": "/RVi/1/2"
+        },
+        {
+          "id": "rvi.2",
+          "target": "any",
+          "status": "candidate",
+          "label": "",
+          "main": "/cam/realmonitor?channel={ch}&subtype=0",
+          "sub": "/cam/realmonitor?channel={ch}&subtype=1"
+        }
+      ]
+    },
+    {
+      "id": "samsung",
+      "name": "Samsung",
+      "rtspPort": 554,
+      "aliases": [
+        "samsung"
+      ],
+      "match": "word",
+      "autoFill": false,
+      "onvifPorts": [],
+      "pairs": [
+        {
+          "id": "samsung.1",
+          "target": "any",
+          "status": "documented",
+          "label": "",
+          "main": "/profile2/media.smp",
+          "sub": "/profile3/media.smp"
+        }
+      ]
+    },
+    {
+      "id": "sannce",
+      "name": "SANNCE",
+      "rtspPort": 554,
+      "aliases": [
+        "sannce"
+      ],
+      "match": "word",
+      "autoFill": false,
+      "onvifPorts": [],
+      "pairs": [
+        {
+          "id": "sannce.2",
+          "target": "any",
+          "status": "documented",
+          "label": "",
+          "main": "/{ch}/1",
+          "sub": "/{ch}/2"
+        }
+      ]
+    },
+    {
+      "id": "sercomm",
+      "name": "Sercomm",
+      "rtspPort": 554,
+      "aliases": [
+        "sercomm"
+      ],
+      "match": "word",
+      "autoFill": false,
+      "onvifPorts": [],
+      "pairs": []
+    },
+    {
+      "id": "siqura",
+      "name": "Siqura",
+      "rtspPort": 554,
+      "aliases": [
+        "siqura"
+      ],
+      "match": "word",
+      "autoFill": false,
+      "onvifPorts": [],
+      "pairs": [
+        {
+          "id": "siqura.1",
+          "target": "any",
+          "status": "documented",
+          "label": "",
+          "main": "/VideoInput/1/h264/1",
+          "sub": "/VideoInput/1/mpeg4/1"
+        }
+      ]
+    },
+    {
+      "id": "sony",
+      "name": "Sony (IPELA)",
+      "rtspPort": 554,
+      "aliases": [
+        "sony"
+      ],
+      "match": "word",
+      "autoFill": false,
+      "onvifPorts": [],
+      "pairs": [
+        {
+          "id": "sony.1",
+          "target": "any",
+          "status": "candidate",
+          "label": "",
+          "main": "/video1",
+          "sub": "/video2"
+        }
+      ]
+    },
+    {
+      "id": "speco",
+      "name": "Speco Technologies",
+      "rtspPort": 9008,
+      "aliases": [
+        "speco",
+        "speco technologies"
+      ],
+      "match": "word",
+      "autoFill": false,
+      "onvifPorts": [],
+      "pairs": [
+        {
+          "id": "speco.1",
+          "target": "any",
+          "status": "documented",
+          "label": "",
+          "main": "/profile1",
+          "sub": "/profile2"
+        }
+      ]
+    },
+    {
+      "id": "sricam",
+      "name": "Sricam",
+      "rtspPort": 554,
+      "aliases": [
+        "sricam"
+      ],
+      "match": "word",
+      "autoFill": false,
+      "onvifPorts": [],
+      "pairs": [
+        {
+          "id": "sricam.1",
+          "target": "any",
+          "status": "documented",
+          "label": "",
+          "main": "/1/h264major",
+          "sub": "/1/h264minor"
+        }
+      ]
+    },
+    {
+      "id": "srihome",
+      "name": "SriHome",
+      "rtspPort": 554,
+      "aliases": [
+        "srihome"
+      ],
+      "match": "word",
+      "autoFill": false,
+      "onvifPorts": [],
+      "pairs": [
+        {
+          "id": "srihome.1",
+          "target": "any",
+          "status": "documented",
+          "label": "",
+          "main": "/1/h264major",
+          "sub": "/1/h264minor"
+        }
+      ]
+    },
+    {
+      "id": "sunba",
+      "name": "Sunba",
+      "rtspPort": 554,
+      "aliases": [
+        "sunba"
+      ],
+      "match": "word",
+      "autoFill": false,
+      "onvifPorts": [],
+      "pairs": [
+        {
+          "id": "sunba.1",
+          "target": "any",
+          "status": "candidate",
+          "label": "",
+          "main": "/media/video1",
+          "sub": "/media/video2"
+        }
+      ]
+    },
+    {
+      "id": "sunell",
+      "name": "Sunell",
+      "rtspPort": 554,
+      "aliases": [
+        "sunell"
+      ],
+      "match": "word",
+      "autoFill": false,
+      "onvifPorts": [],
+      "pairs": [
+        {
+          "id": "sunell.1",
+          "target": "any",
+          "status": "documented",
+          "label": "",
+          "main": "/snl/live/1/1",
+          "sub": "/snl/live/1/2"
+        }
+      ]
+    },
+    {
+      "id": "surveon",
+      "name": "Surveon",
+      "rtspPort": 554,
+      "aliases": [
+        "surveon"
+      ],
+      "match": "word",
+      "autoFill": false,
+      "onvifPorts": [],
+      "pairs": [
+        {
+          "id": "surveon.1",
+          "target": "any",
+          "status": "candidate",
+          "label": "",
+          "main": "/stream1",
+          "sub": "/stream2"
+        }
+      ]
+    },
+    {
+      "id": "sv3c",
+      "name": "SV3C",
+      "rtspPort": 554,
+      "aliases": [
+        "sv3c"
+      ],
+      "match": "word",
+      "autoFill": false,
+      "onvifPorts": [],
+      "pairs": [
+        {
+          "id": "sv3c.1",
+          "target": "any",
+          "status": "documented",
+          "label": "",
+          "main": "/stream0",
+          "sub": "/stream1"
+        },
+        {
+          "id": "sv3c.2",
+          "target": "any",
+          "status": "documented",
+          "label": "",
+          "main": "/11",
+          "sub": "/12"
+        }
+      ]
+    },
+    {
+      "id": "swann",
+      "name": "Swann",
+      "rtspPort": 554,
+      "aliases": [
+        "swann"
+      ],
+      "match": "word",
+      "autoFill": false,
+      "onvifPorts": [],
+      "pairs": [
+        {
+          "id": "swann.1",
+          "target": "any",
+          "status": "candidate",
+          "label": "",
+          "main": "/ch{ch}/0",
+          "sub": "/ch{ch}/1"
+        }
+      ]
+    },
+    {
+      "id": "synology",
+      "name": "Synology",
+      "rtspPort": 554,
+      "aliases": [
+        "synology"
+      ],
+      "match": "word",
+      "autoFill": false,
+      "onvifPorts": [],
+      "pairs": [
+        {
+          "id": "synology.1",
+          "target": "any",
+          "status": "documented",
+          "label": "",
+          "main": "/1",
+          "sub": "/2"
+        }
+      ]
+    },
+    {
+      "id": "tapo",
+      "name": "TP-Link Tapo",
+      "rtspPort": 554,
+      "aliases": [
+        "tapo",
+        "tp-link tapo",
+        "tp-link",
+        "tplink"
+      ],
+      "match": "substring",
+      "autoFill": true,
+      "pin": "tapo.1",
+      "modelPatterns": [
+        " (?:tc\\d{2}[a-z]?|c[1-9]\\d{2}[a-z]{0,2}) "
+      ],
+      "onvifPorts": [
+        2020
+      ],
+      "requires": [
+        "camera-account"
+      ],
+      "quirks": [
+        {
+          "id": "stream-limit",
+          "note": "设备同时能拉的流数量有限：云存储（Tapo Care）、NVR、microSD 录像不能同时开。现场有 Tapo 的主流 /stream1 在 PLAY 阶段被设备断开（见 docs/CAMERA-BINDING-2026-10-06.md），可能与此有关，待验证。"
+        }
+      ],
+      "pairs": [
+        {
+          "id": "tapo.1",
+          "target": "any",
+          "status": "verified",
+          "label": "",
+          "main": "/stream1",
+          "sub": "/stream2"
+        },
+        {
+          "id": "tapo.2",
+          "target": "any",
+          "status": "documented",
+          "label": "telephoto",
+          "main": "/stream6",
+          "sub": "/stream7"
+        }
+      ]
+    },
+    {
+      "id": "tenda",
+      "name": "Tenda",
+      "rtspPort": 8554,
+      "aliases": [
+        "tenda"
+      ],
+      "match": "word",
+      "autoFill": false,
+      "onvifPorts": [],
+      "pairs": [
+        {
+          "id": "tenda.1",
+          "target": "any",
+          "status": "documented",
+          "label": "",
+          "main": "/profile0",
+          "sub": "/profile1"
+        }
+      ]
+    },
+    {
+      "id": "tenvis",
+      "name": "TENVIS",
+      "rtspPort": 554,
+      "aliases": [
+        "tenvis"
+      ],
+      "match": "word",
+      "autoFill": false,
+      "onvifPorts": [],
+      "pairs": [
+        {
+          "id": "tenvis.1",
+          "target": "any",
+          "status": "candidate",
+          "label": "",
+          "main": "/11",
+          "sub": "/12"
+        }
+      ]
+    },
+    {
+      "id": "toshiba",
+      "name": "Toshiba",
+      "rtspPort": 554,
+      "aliases": [
+        "toshiba"
+      ],
+      "match": "word",
+      "autoFill": false,
+      "onvifPorts": [],
+      "pairs": [
+        {
+          "id": "toshiba.1",
+          "target": "any",
+          "status": "documented",
+          "label": "",
+          "main": "/live.sdp",
+          "sub": "/live2.sdp"
+        }
+      ]
+    },
+    {
+      "id": "tp-link",
+      "name": "TP-Link",
+      "rtspPort": 554,
+      "aliases": [
+        "tp-link",
+        "tplink",
+        "tp link"
+      ],
+      "match": "word",
+      "autoFill": false,
+      "onvifPorts": [],
+      "pairs": [
+        {
+          "id": "tp-link.1",
+          "target": "any",
+          "status": "documented",
+          "label": "",
+          "main": "/stream1",
+          "sub": "/stream2"
+        },
+        {
+          "id": "tp-link.2",
+          "target": "any",
+          "status": "candidate",
+          "label": "tele",
+          "main": "/stream6",
+          "sub": "/stream7"
+        }
+      ]
+    },
+    {
+      "id": "trassir",
+      "name": "Trassir",
+      "rtspPort": 554,
+      "aliases": [
+        "trassir"
+      ],
+      "match": "word",
+      "autoFill": false,
+      "onvifPorts": [],
+      "pairs": [
+        {
+          "id": "trassir.1",
+          "target": "any",
+          "status": "documented",
+          "label": "",
+          "main": "/live/main",
+          "sub": "/live/sub"
+        }
+      ]
+    },
+    {
+      "id": "trendnet",
+      "name": "TRENDnet",
+      "rtspPort": 554,
+      "aliases": [
+        "trendnet"
+      ],
+      "match": "word",
+      "autoFill": false,
+      "onvifPorts": [],
+      "pairs": [
+        {
+          "id": "trendnet.1",
+          "target": "any",
+          "status": "candidate",
+          "label": "",
+          "main": "/Src/MediaInput/stream_1",
+          "sub": "/Src/MediaInput/stream_2"
+        }
+      ]
+    },
+    {
+      "id": "truvision",
+      "name": "TruVision",
+      "rtspPort": 554,
+      "aliases": [
+        "truvision"
+      ],
+      "match": "word",
+      "autoFill": false,
+      "onvifPorts": [],
+      "pairs": [
+        {
+          "id": "truvision.1",
+          "target": "any",
+          "status": "candidate",
+          "label": "",
+          "main": "/Streaming/Channels/{ch}01",
+          "sub": "/Streaming/Channels/{ch}02"
+        }
+      ]
+    },
+    {
+      "id": "tvt",
+      "name": "TVT Digital",
+      "rtspPort": 554,
+      "aliases": [
+        "tvt",
+        "tvt digital"
+      ],
+      "match": "word",
+      "autoFill": false,
+      "onvifPorts": [],
+      "factory": {
+        "accounts": [
+          {
+            "username": "admin",
+            "password": "123456",
+            "scope": "多款 TD 系列摄像头快速入门手册写明；新固件是否要求激活不确定",
+            "status": "candidate"
+          }
+        ],
+        "activation": {
+          "required": "unknown",
+          "status": "candidate"
+        },
+        "lock": {
+          "maxAttempts": null,
+          "lockMinutes": null,
+          "status": "candidate"
+        },
+        "factoryIps": []
+      },
+      "pairs": [
+        {
+          "id": "tvt.1",
+          "target": "any",
+          "status": "candidate",
+          "label": "",
+          "main": "/profile1",
+          "sub": "/profile2"
+        }
+      ]
+    },
+    {
+      "id": "ubiquiti",
+      "name": "Ubiquiti",
+      "rtspPort": null,
+      "aliases": [
+        "ubiquiti"
+      ],
+      "match": "word",
+      "autoFill": false,
+      "onvifPorts": [],
+      "pairs": []
+    },
+    {
+      "id": "uniarch",
+      "name": "Uniarch",
+      "rtspPort": 554,
+      "aliases": [
+        "uniarch"
+      ],
+      "match": "word",
+      "autoFill": false,
+      "onvifPorts": [],
+      "pairs": [
+        {
+          "id": "uniarch.1",
+          "target": "any",
+          "status": "documented",
+          "label": "",
+          "main": "/media/video1",
+          "sub": "/media/video2"
+        }
+      ]
+    },
+    {
+      "id": "unifi",
+      "name": "UniFi",
+      "rtspPort": 7441,
+      "aliases": [
+        "unifi"
+      ],
+      "match": "word",
+      "autoFill": false,
+      "onvifPorts": [],
+      "pairs": []
+    },
+    {
+      "id": "uniview",
+      "name": "Uniview",
+      "rtspPort": 554,
+      "aliases": [
+        "uniview",
+        "unv",
+        "uniarch",
+        "宇视"
+      ],
+      "match": "word",
+      "autoFill": false,
+      "onvifPorts": [],
+      "factory": {
+        "accounts": [
+          {
+            "username": "admin",
+            "password": "123456",
+            "scope": "老固件 / 多数宇视产品；新固件首次登录要强制改口令或先激活",
+            "status": "documented"
+          },
+          {
+            "username": "admin",
+            "password": "admin",
+            "scope": "部分录像机 / 个别摄像头",
+            "status": "candidate"
+          }
+        ],
+        "activation": {
+          "required": "new-firmware",
+          "methods": [
+            "web",
+            "eztools"
+          ],
+          "minPasswordLength": 8,
+          "status": "candidate"
+        },
+        "lock": {
+          "maxAttempts": 6,
+          "lockMinutes": 10,
+          "status": "candidate"
+        },
+        "factoryIps": [
+          "192.168.1.13"
+        ]
+      },
+      "pairs": [
+        {
+          "id": "uniview.1",
+          "target": "camera",
+          "status": "documented",
+          "label": "",
+          "main": "/media/video1",
+          "sub": "/media/video2"
+        },
+        {
+          "id": "uniview.2",
+          "target": "nvr",
+          "status": "candidate",
+          "label": "",
+          "main": "/unicast/c{ch}/s0/live",
+          "sub": "/unicast/c{ch}/s1/live"
+        }
+      ]
+    },
+    {
+      "id": "urmet",
+      "name": "Urmet",
+      "rtspPort": 554,
+      "aliases": [
+        "urmet"
+      ],
+      "match": "word",
+      "autoFill": false,
+      "onvifPorts": [],
+      "pairs": [
+        {
+          "id": "urmet.1",
+          "target": "any",
+          "status": "documented",
+          "label": "",
+          "main": "/ch01/0",
+          "sub": "/ch01/1"
+        }
+      ]
+    },
+    {
+      "id": "v380",
+      "name": "V380",
+      "rtspPort": 554,
+      "aliases": [
+        "v380"
+      ],
+      "match": "word",
+      "autoFill": false,
+      "onvifPorts": [],
+      "pairs": [
+        {
+          "id": "v380.1",
+          "target": "any",
+          "status": "documented",
+          "label": "",
+          "main": "/live/ch00_1",
+          "sub": "/live/ch00_0"
+        }
+      ]
+    },
+    {
+      "id": "verkada",
+      "name": "Verkada",
+      "rtspPort": 8554,
+      "aliases": [
+        "verkada"
+      ],
+      "match": "word",
+      "autoFill": false,
+      "onvifPorts": [],
+      "pairs": [
+        {
+          "id": "verkada.1",
+          "target": "any",
+          "status": "documented",
+          "label": "",
+          "main": "/high",
+          "sub": "/standard"
+        }
+      ]
+    },
+    {
+      "id": "vicon",
+      "name": "Vicon",
+      "rtspPort": 554,
+      "aliases": [
+        "vicon"
+      ],
+      "match": "word",
+      "autoFill": false,
+      "onvifPorts": [],
+      "pairs": [
+        {
+          "id": "vicon.1",
+          "target": "any",
+          "status": "documented",
+          "label": "",
+          "main": "/stream1",
+          "sub": "/stream2"
+        }
+      ]
+    },
+    {
+      "id": "vigi",
+      "name": "VIGI",
+      "rtspPort": 554,
+      "aliases": [
+        "vigi"
+      ],
+      "match": "word",
+      "autoFill": false,
+      "onvifPorts": [],
+      "pairs": [
+        {
+          "id": "vigi.1",
+          "target": "any",
+          "status": "documented",
+          "label": "",
+          "main": "/stream1",
+          "sub": "/stream2"
+        }
+      ]
+    },
+    {
+      "id": "vikylin",
+      "name": "Vikylin",
+      "rtspPort": 554,
+      "aliases": [
+        "vikylin"
+      ],
+      "match": "word",
+      "autoFill": false,
+      "onvifPorts": [],
+      "pairs": [
+        {
+          "id": "vikylin.1",
+          "target": "any",
+          "status": "documented",
+          "label": "",
+          "main": "/stream0",
+          "sub": "/stream1"
+        }
+      ]
+    },
+    {
+      "id": "vitek",
+      "name": "Vitek",
+      "rtspPort": 554,
+      "aliases": [
+        "vitek"
+      ],
+      "match": "word",
+      "autoFill": false,
+      "onvifPorts": [],
+      "pairs": [
+        {
+          "id": "vitek.1",
+          "target": "any",
+          "status": "documented",
+          "label": "",
+          "main": "/profile1",
+          "sub": "/profile2"
+        }
+      ]
+    },
+    {
+      "id": "vivotek",
+      "name": "Vivotek",
+      "rtspPort": 554,
+      "aliases": [
+        "vivotek"
+      ],
+      "match": "word",
+      "autoFill": false,
+      "onvifPorts": [],
+      "pairs": [
+        {
+          "id": "vivotek.1",
+          "target": "any",
+          "status": "documented",
+          "label": "",
+          "main": "/live1s1.sdp",
+          "sub": "/live1s2.sdp"
+        },
+        {
+          "id": "vivotek.2",
+          "target": "any",
+          "status": "documented",
+          "label": "",
+          "main": "/live.sdp",
+          "sub": "/live2.sdp"
+        }
+      ]
+    },
+    {
+      "id": "vstarcam",
+      "name": "VStarcam",
+      "rtspPort": 10554,
+      "aliases": [
+        "vstarcam"
+      ],
+      "match": "word",
+      "autoFill": false,
+      "onvifPorts": [],
+      "pairs": [
+        {
+          "id": "vstarcam.2",
+          "target": "any",
+          "status": "candidate",
+          "label": "",
+          "main": "/tcp/av0_0",
+          "sub": "/udp/av0_1"
+        }
+      ]
+    },
+    {
+      "id": "wansview",
+      "name": "Wansview",
+      "rtspPort": 554,
+      "aliases": [
+        "wansview"
+      ],
+      "match": "word",
+      "autoFill": false,
+      "onvifPorts": [],
+      "pairs": [
+        {
+          "id": "wansview.1",
+          "target": "any",
+          "status": "candidate",
+          "label": "",
+          "main": "/live/ch0",
+          "sub": "/live/ch1"
+        }
+      ]
+    },
+    {
+      "id": "wisenet",
+      "name": "Wisenet",
+      "rtspPort": 554,
+      "aliases": [
+        "wisenet"
+      ],
+      "match": "word",
+      "autoFill": false,
+      "onvifPorts": [],
+      "pairs": [
+        {
+          "id": "wisenet.1",
+          "target": "any",
+          "status": "documented",
+          "label": "",
+          "main": "/profile2/media.smp",
+          "sub": "/profile3/media.smp"
+        }
+      ]
+    },
+    {
+      "id": "wyzecam",
+      "name": "Wyze",
+      "rtspPort": 8554,
+      "aliases": [
+        "wyzecam",
+        "wyze"
+      ],
+      "match": "word",
+      "autoFill": false,
+      "onvifPorts": [],
+      "pairs": []
+    },
+    {
+      "id": "xvision",
+      "name": "Xvision",
+      "rtspPort": 554,
+      "aliases": [
+        "xvision"
+      ],
+      "match": "word",
+      "autoFill": false,
+      "onvifPorts": [],
+      "pairs": [
+        {
+          "id": "xvision.1",
+          "target": "any",
+          "status": "candidate",
+          "label": "",
+          "main": "/ch00/0",
+          "sub": "/ch00/1"
+        },
+        {
+          "id": "xvision.2",
+          "target": "any",
+          "status": "candidate",
+          "label": "",
+          "main": "/ch01.264",
+          "sub": "/ch01_sub.264"
+        },
+        {
+          "id": "xvision.3",
+          "target": "any",
+          "status": "candidate",
+          "label": "",
+          "main": "/cam/realmonitor?channel=1&subtype=0&unicast=true",
+          "sub": "/cam/realmonitor?channel=1&subtype=1&unicast=true"
+        }
+      ]
+    },
+    {
+      "id": "y-cam",
+      "name": "Y-cam",
+      "rtspPort": 554,
+      "aliases": [
+        "y-cam",
+        "ycam",
+        "y cam"
+      ],
+      "match": "word",
+      "autoFill": false,
+      "onvifPorts": [],
+      "pairs": []
+    },
+    {
+      "id": "zavio",
+      "name": "Zavio",
+      "rtspPort": 554,
+      "aliases": [
+        "zavio"
+      ],
+      "match": "word",
+      "autoFill": false,
+      "onvifPorts": [],
+      "pairs": [
+        {
+          "id": "zavio.1",
+          "target": "any",
+          "status": "documented",
+          "label": "",
+          "main": "/video.pro1",
+          "sub": "/video.pro2"
+        }
+      ]
+    },
+    {
+      "id": "zosi",
+      "name": "ZOSI",
+      "rtspPort": 554,
+      "aliases": [
+        "zosi"
+      ],
+      "match": "word",
+      "autoFill": false,
+      "onvifPorts": [],
+      "pairs": [
+        {
+          "id": "zosi.1",
+          "target": "any",
+          "status": "documented",
+          "label": "",
+          "main": "/video1",
+          "sub": "/video2"
+        },
+        {
+          "id": "zosi.2",
+          "target": "any",
+          "status": "documented",
+          "label": "",
+          "main": "/ucast/11",
+          "sub": "/ucast/12"
+        }
+      ]
+    },
+    {
+      "id": "h3c",
+      "name": "H3C（新华三）",
+      "rtspPort": null,
+      "aliases": [
+        "h3c",
+        "新华三",
+        "华三"
+      ],
+      "match": "substring",
+      "autoFill": false,
+      "onvifPorts": [],
+      "factory": {
+        "accounts": [],
+        "activation": {
+          "required": "unknown",
+          "status": "candidate"
+        },
+        "lock": {
+          "maxAttempts": null,
+          "lockMinutes": null,
+          "status": "candidate"
+        },
+        "factoryIps": []
+      },
+      "pairs": []
+    },
+    {
+      "id": "generic",
+      "name": "通用候选（旧代码里的写法，厂家未证实）",
+      "rtspPort": null,
+      "aliases": [],
+      "match": "word",
+      "autoFill": false,
+      "onvifPorts": [],
+      "pairs": [
+        {
+          "id": "generic.1",
+          "target": "any",
+          "status": "candidate",
+          "label": "",
+          "main": "/h264/ch1/main/av_stream",
+          "sub": "/h264/ch1/sub/av_stream"
+        },
+        {
+          "id": "generic.2",
+          "target": "any",
+          "status": "candidate",
+          "label": "",
+          "main": "/h264Preview_01_main",
+          "sub": "/h264Preview_01_sub"
+        },
+        {
+          "id": "generic.3",
+          "target": "any",
+          "status": "candidate",
+          "label": "",
+          "main": "/live/ch00_0",
+          "sub": "/live/ch00_1"
+        },
+        {
+          "id": "generic.4",
+          "target": "any",
+          "status": "candidate",
+          "label": "",
+          "main": "/11",
+          "sub": "/12"
+        }
+      ]
+    }
+  ]
+}

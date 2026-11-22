@@ -1,0 +1,29 @@
+{
+  "schema": 1,
+  "_doc": "摄像头自带 AI（人 / 车）能力库：每个品牌怎么探测能力、怎么开启、事件走哪条通道，以及证据等级和黑名单型号。和 RTSP 码流规格一样遵守本库红线：不存任何口令；每条带证据等级（verified / documented / candidate）和来源（来源台账 data/sources.json 里登记过的 id）。适配器代码在 h2z.backend apps/security/src/ioc-ops/camera-ai/，方案在项目文档 plan-2026-11-08-camera-ai-auto-onboarding.md。candidate 的条目：适配器写设备之前必须先读到设备自己声明的选项，读不到就不写。",
+  "vendors": [
+    {
+      "id": "hikvision",
+      "aliases": ["hikvision", "海康"],
+      "adapter": "hik",
+      "eventChannel": "alertStream",
+      "probe": ["/ISAPI/System/deviceInfo", "/ISAPI/Smart/FieldDetection/{ch}", "/ISAPI/Event/triggers/fielddetection-{ch}"],
+      "enable": {
+        "writes": ["/ISAPI/Smart/FieldDetection/{ch}", "/ISAPI/Event/triggers/fielddetection-{ch}"],
+        "fields": ["enabled", "detectionTarget", "EventTriggerNotification(center)"],
+        "targetValueSource": "设备自己声明的 detectionTarget 的 opt 选项；不猜取值，选项里表达不了「人+车」就不写"
+      },
+      "events": "/ISAPI/Event/notification/alertStream",
+      "evidence": "candidate",
+      "evidenceNote": "路径和字段名来自对海康公开文档的记忆，没有打开官方页面核对，也没有在真机上验证。LA9 / LA31 的只读探测样本到手后，对有样本的型号升级为 verified，并换掉测试里的合成样本。",
+      "blockModels": [],
+      "sources": ["vendor-doc"]
+    }
+  ],
+  "pending": [
+    { "id": "uniview", "status": "待拿真机样本；私有接口（LAPI）路径待核实" },
+    { "id": "tvt", "status": "待拿真机样本；私有接口待核实" },
+    { "id": "h3c", "status": "先看现场型号；可能是贴牌机，接口多半与大华或宇视同源（待核实）" },
+    { "id": "dahua", "status": "事件走 eventManager.cgi attach（第三方库已见）；人车事件码与开启接口待核实" }
+  ]
+}

@@ -1,0 +1,18 @@
+# Merge only on RK3588 Linux after preparing an ARM64 RKNN/ffmpeg image.
+services:
+  yolo:
+    platform: linux/arm64
+    image: ${RKNN_IMAGE:?Set RKNN_IMAGE to a validated RK3588 image}
+    build: !reset null
+    environment:
+      YOLO_MODE: rknn
+      YOLO_MODEL: /models/yolov8n.rknn
+      VIDEO_DECODER: ${RKNN_VIDEO_DECODER:-h264_rkmpp}
+      INFERENCE_FPS: ${INFERENCE_FPS:-5}
+    devices:
+      - /dev/dri:/dev/dri
+      - /dev/mpp_service:/dev/mpp_service
+      - /dev/rga:/dev/rga
+    # Device names and kernel drivers must be checked on the actual OS.
+    # Do not mount the host's entire /usr/lib into a container with a different libc.
+    group_add: ['${VIDEO_GID:-44}', '${RENDER_GID:-109}']

@@ -1,0 +1,7 @@
+# 扩展包 vision（车辆检测：yolo）：和 compose.lean.yaml 一起用（见那个文件开头）。
+# yolo 通过 MQTT 报识别结果，所以依赖 iot 包：这里让 yolo 依赖 emqx，没装 iot 就开 vision 时 docker compose 直接报
+# 「depends on undefined service emqx」，不会悄悄起一个连不上 MQTT 的 yolo（h2z-os-pack 装包前也会先检查依赖）。
+services:
+  yolo:
+    depends_on:
+      emqx: {condition: service_healthy}

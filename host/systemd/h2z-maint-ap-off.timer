@@ -1,0 +1,12 @@
+# The maintenance hotspot is open for AP_WINDOW_MIN minutes (default 2 hours) after every boot;
+# setup-host-network.sh writes the actual value as a drop-in (h2z-maint-ap-off.timer.d/window.conf).
+[Unit]
+Description=Close the H2Z maintenance WiFi hotspot after the boot window
+
+[Timer]
+OnBootSec=2h
+AccuracySec=10s
+Unit=h2z-maint-ap-off.service
+
+[Install]
+WantedBy=timers.target

@@ -1,0 +1,53 @@
+{
+  "schema": 1,
+  "_doc": "来源台账：库里每条数据的来源都必须在这里登记，并且用法和许可在允许范围内（测试里有门禁）。forbidden 开头的是明确不能进库的来源，写在这里是为了让规则可查、可审。",
+  "sources": [
+    {
+      "id": "ch-bas/cctv-camera-database",
+      "usage": "import",
+      "license": "CC0-1.0",
+      "url": "https://github.com/ch-bas/cctv-camera-database",
+      "note": "只取 data/rtsp-patterns.json；只收 verified 的模板；不带入 strix_lead / unverified_leads / notes；来源主机分级见 scripts/camera-library/import-ch-bas.mjs。commit 与文件哈希记录在 imported.json 的 source 里。"
+    },
+    {
+      "id": "first-party",
+      "usage": "own",
+      "license": "proprietary-own",
+      "note": "H2ZTECH 自己的现场实测，以及库化之前代码里已有的写法。"
+    },
+    {
+      "id": "vendor-doc",
+      "usage": "cite",
+      "license": "facts-with-link",
+      "note": "厂家公开文档里写明的事实（路径、端口、限制），附链接和取用日期。不复制文档原文。"
+    },
+    {
+      "id": "third-party-cite",
+      "usage": "cite",
+      "license": "facts-with-link",
+      "note": "经销商 / 技术站 / 手册转载页里写明的事实（出厂账号、锁定次数、出厂 IP），附链接和取用日期，只当候选（candidate），不复制原文。2026-11-08 起用于 factory 字段。"
+    },
+    {
+      "id": "standards",
+      "usage": "cite",
+      "license": "facts-with-link",
+      "note": "标准组织公开的规范与注册表里写明的事实（IETF RFC 的 MIB、IEEE 802.1AB、ONVIF 规范、IANA 企业号），附链接和取用日期。2026-11-16 起用于录像机库 / 网络设备库。"
+    },
+    {
+      "id": "strixcamdb",
+      "usage": "forbidden-bulk",
+      "license": "CC-BY-NC-4.0",
+      "url": "https://github.com/eduard256/StrixCamDB",
+      "note": "非商用许可，且数据大部分来自 iSpyConnect。禁止批量导入、下载整库、写脚本批量灌入；只允许人工在网页上针对手上有真机的单个型号查一眼当线索，试通后按我们自己的格式写自己的证据。"
+    },
+    {
+      "id": "ispyconnect",
+      "usage": "forbidden",
+      "license": "all-rights-reserved",
+      "url": "https://www.ispyconnect.com/cameras",
+      "note": "数据库页面保留所有权利，服务条款禁止自动化访问。不查、不导入、不当参考。"
+    }
+  ],
+  "allowedUsage": ["import", "own", "cite"],
+  "allowedLicenses": ["CC0-1.0", "MIT", "BSD-2-Clause", "BSD-3-Clause", "Apache-2.0", "proprietary-own", "facts-with-link"]
+}

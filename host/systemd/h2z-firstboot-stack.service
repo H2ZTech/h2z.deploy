@@ -1,0 +1,18 @@
+# Starts the stack on a freshly cloned board (new secrets, empty volumes) or, on the master after
+# host/image/prepare.sh, simply restarts it. No-op without one of the flags below.
+# Installed by host/setup-host-network.sh with `systemctl link`; docs/ORANGE-PI.md §10.
+[Unit]
+Description=H2Z first boot: start the stack
+ConditionPathExists=|/etc/h2z/firstboot-stack-pending
+ConditionPathExists=|/etc/h2z/resume-pending
+Wants=docker.service
+After=docker.service h2z-firstboot.service
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+ExecStart=/bin/sh -c 'exec /bin/sh "$$(dirname "$$(readlink -f /etc/systemd/system/h2z-firstboot-stack.service)")/../firstboot.sh" stack'
+TimeoutStartSec=30min
+
+[Install]
+WantedBy=multi-user.target

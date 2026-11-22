@@ -1,0 +1,18 @@
+# First boot of a board cloned from the master image: new SSH host keys, hostname, hotspot SSID.
+# No-op unless /etc/h2z/firstboot-pending exists (written by host/image/generalize-root.sh).
+# Installed by host/setup-host-network.sh with `systemctl link`; docs/ORANGE-PI.md §10.
+[Unit]
+Description=H2Z first boot: new board identity
+ConditionPathExists=/etc/h2z/firstboot-pending
+Wants=systemd-networkd.service
+After=local-fs.target systemd-networkd.service systemd-machine-id-commit.service
+Before=ssh.service h2z-maint-ap.service h2z-firewall.service docker.service
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+ExecStart=/bin/sh -c 'exec /bin/sh "$$(dirname "$$(readlink -f /etc/systemd/system/h2z-firstboot.service)")/../firstboot.sh" identity'
+TimeoutStartSec=10min
+
+[Install]
+WantedBy=multi-user.target

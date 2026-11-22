@@ -1,0 +1,12 @@
+*.sh text eol=lf
+*.mjs text eol=lf
+*.py text eol=lf
+*.yaml text eol=lf
+*.conf text eol=lf
+*.md text eol=lf
+frontend/html/** -text
+host/** text eol=lf
+*.json text eol=lf
+*.b64 text eol=lf
+docker/zlm-x86/h2z-vaapi-selftest text eol=lf
+*.Dockerfile text eol=lf

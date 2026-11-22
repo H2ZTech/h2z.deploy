@@ -1,0 +1,20 @@
+# Rendered by host/setup-host-network.sh -> /etc/systemd/network/20-h2z-maint.network.
+# Maintenance hotspot address and DHCP for laptops; no default route or DNS is handed out.
+[Match]
+Name=@AP_IF@
+
+[Link]
+RequiredForOnline=no
+
+[Network]
+Address=@AP_ADDRESS@
+ConfigureWithoutCarrier=yes
+DHCPServer=yes
+LinkLocalAddressing=no
+IPv6AcceptRA=no
+
+[DHCPServer]
+PoolOffset=100
+PoolSize=50
+EmitDNS=no
+EmitRouter=no

@@ -1,0 +1,14 @@
+# 扩展包 iot（MQTT 消息服务：emqx）：和 compose.lean.yaml 一起用（见那个文件开头）。
+# 把 backend 接上 emqx：环境变量和 depends_on 与 compose.yaml 里的完全一样。
+# 装 / 卸这个包要重建 backend（环境变量变了），本地控制台会中断约 1 分钟。
+services:
+  backend:
+    depends_on:
+      emqx: {condition: service_healthy}
+    environment:
+      IOC_MQTT_URL: mqtt://${MQTT_USERNAME}:${MQTT_PASSWORD}@emqx:1883
+      # security main.ts does not pass MQTT credentials to its subscription client.
+      # Run the read/write notifier through the authenticated URL as well.
+      MQTT_BROKER_URL: mqtt://${MQTT_USERNAME}:${MQTT_PASSWORD}@emqx:1883
+      MQTT_USERNAME: ${MQTT_USERNAME}
+      MQTT_PASSWORD: ${MQTT_PASSWORD}

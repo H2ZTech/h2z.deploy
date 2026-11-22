@@ -1,0 +1,3 @@
+# 已并入底座（2026-11-08）：远程接入（tailscale、tailscale-cli）不再是扩展包，compose.yaml 里本来就有，compose.lean.yaml 不再把它们挪进 profile。
+# 保留这个空文件只是让还写着 compose.pack-remote.yaml 的旧 .env / packs.json 不报「找不到文件」。
+services: {}

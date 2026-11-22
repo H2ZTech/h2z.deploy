@@ -1,0 +1,21 @@
+# H2Z maintenance WiFi hotspot (host side, independent of Docker).
+# Installed by host/setup-host-network.sh with `systemctl link`; settings in /etc/h2z/host.env.
+# Opens at boot; h2z-maint-ap-off.timer closes it AP_WINDOW_MIN minutes (default 2 h) after boot. Reboot the board to reopen it,
+# or reopen it from IOC admin → 设备网络 (host-agent).
+[Unit]
+Description=H2Z maintenance WiFi hotspot
+Wants=systemd-networkd.service h2z-firewall.service
+After=systemd-networkd.service h2z-firewall.service
+
+[Service]
+Type=simple
+EnvironmentFile=/etc/h2z/host.env
+ExecStartPre=-/usr/sbin/rfkill unblock wifi
+ExecStartPre=/usr/sbin/ip link set ${AP_IF} up
+ExecStart=/usr/sbin/hostapd /etc/h2z/hostapd-maint.conf
+ExecStopPost=-/usr/sbin/ip link set ${AP_IF} down
+Restart=on-failure
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target

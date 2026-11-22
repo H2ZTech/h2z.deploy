@@ -1,0 +1,20 @@
+# x86 核显硬件转码（VAAPI：显卡硬解 H.265 → 硬编 H.264）。只在「有 /dev/dri/renderD128、本机已有 zlm-x86 镜像」时才并入 COMPOSE_FILE：
+#   H2Z OS：h2z-os-pack env 开机时自动判断（没有显卡 / 没有镜像 = 不并入，行为和以前完全一样）。
+#   手工：COMPOSE_FILE=compose.yaml:compose.lean.yaml:compose.zlm-vaapi.yaml docker compose up -d
+# 没有显卡的机器、RK3588 板子不要合并这个文件（RK3588 用 compose.zlm-rk3588.yaml；没有 /dev/dri/renderD128 时 compose 会报错）。
+# 并入后后端仍然要在启动时用样片真转一次才启用 VAAPI（IOC_TRANSCODE_HW=auto），不通过就继续用 libx264，不影响出画面；
+# 现场也可以手工验证：docker exec h2z-zlm-1 h2z-vaapi-selftest
+# 想强制用软件：.env 里写 IOC_TRANSCODE_HW=none（下面 backend 的值是 ${IOC_TRANSCODE_HW:-auto}，.env 里写了就以它为准）。
+services:
+  zlm:
+    # zlm-x86 = 官方 zlmediakit 镜像 + libva 驱动 + 样片（docker/zlm-x86.Dockerfile，CI: build-zlm-x86.yml）
+    image: ${ZLM_VAAPI_IMAGE:-ghcr.io/h2ztech/zlm-x86:latest}
+    # 设备节点是 root:render 660；ZLM 容器以 root 运行，不用加组
+    devices:
+      - /dev/dri/renderD128:/dev/dri/renderD128
+    environment:
+      H2Z_ZLM_CONFIG: transcode-v7-vaapi
+  backend:
+    environment:
+      # auto：后端启动自检通过才用 VAAPI；不通过用 libx264（管理页 / 日志里写明原因）
+      IOC_TRANSCODE_HW: ${IOC_TRANSCODE_HW:-auto}

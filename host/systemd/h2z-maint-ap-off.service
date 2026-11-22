@@ -1,0 +1,6 @@
+[Unit]
+Description=Close the H2Z maintenance WiFi hotspot after the boot window
+
+[Service]
+Type=oneshot
+ExecStart=/usr/bin/systemctl stop h2z-maint-ap.service

@@ -1,0 +1,1231 @@
+{
+  "schema": 1,
+  "sources": [
+    {
+      "id": "h2z-la31",
+      "title": "H2Z field deployment LA31 (H3C Comware 7 switches, WX controller, WA access points), 2026-10/11",
+      "ledger": "first-party"
+    },
+    {
+      "id": "iana-pen",
+      "title": "IANA Private Enterprise Numbers registry",
+      "url": "https://www.iana.org/assignments/enterprise-numbers/",
+      "ledger": "standards",
+      "accessed": "2026-11-16"
+    },
+    {
+      "id": "ietf-mibs",
+      "title": "IETF standard MIBs: RFC 1213 / 3418 (system), RFC 2863 (IF-MIB), RFC 4188 (BRIDGE-MIB), RFC 4363 (Q-BRIDGE-MIB), RFC 4293 (IP-MIB), RFC 6933 (ENTITY-MIB), RFC 3621 (POWER-ETHERNET-MIB), RFC 1628 (UPS-MIB); IEEE 802.1AB LLDP-MIB",
+      "url": "https://www.rfc-editor.org/",
+      "ledger": "standards",
+      "accessed": "2026-11-16"
+    },
+    {
+      "id": "h2z-ai-scenario",
+      "title": "h2z-ai-server config/scenarios/network-discovery (controller endpoints named there)",
+      "ledger": "first-party"
+    },
+    {
+      "id": "vendor-cli-general",
+      "title": "各厂家命令参考里的标准 show / display 命令",
+      "ledger": "vendor-doc",
+      "fromMemory": true,
+      "note": "凭对厂家公开命令参考的记忆写的，没有逐条打开官方页面核对，也没有在真机上验证；只能撑 candidate"
+    }
+  ],
+  "snmp": {
+    "note": "Standard tables every family below is asked first. A device that does not answer one simply lacks it.",
+    "evidence": "documented",
+    "sources": [
+      "ietf-mibs"
+    ],
+    "tables": [
+      {
+        "id": "sysDescr",
+        "oid": "1.3.6.1.2.1.1.1.0",
+        "gives": "platform, software version and usually the model"
+      },
+      {
+        "id": "sysObjectID",
+        "oid": "1.3.6.1.2.1.1.2.0",
+        "gives": "vendor (enterprise number) and product"
+      },
+      {
+        "id": "sysName",
+        "oid": "1.3.6.1.2.1.1.5.0",
+        "gives": "configured device name"
+      },
+      {
+        "id": "sysLocation",
+        "oid": "1.3.6.1.2.1.1.6.0",
+        "gives": "configured location (cabinet, room)"
+      },
+      {
+        "id": "ifDescr",
+        "oid": "1.3.6.1.2.1.2.2.1.2",
+        "gives": "interface names by ifIndex"
+      },
+      {
+        "id": "ifOperStatus",
+        "oid": "1.3.6.1.2.1.2.2.1.8",
+        "gives": "link up (1) / down (2)"
+      },
+      {
+        "id": "ifPhysAddress",
+        "oid": "1.3.6.1.2.1.2.2.1.6",
+        "gives": "interface MAC"
+      },
+      {
+        "id": "ifHighSpeed",
+        "oid": "1.3.6.1.2.1.31.1.1.1.15",
+        "gives": "negotiated speed in Mbps"
+      },
+      {
+        "id": "ifAlias",
+        "oid": "1.3.6.1.2.1.31.1.1.1.18",
+        "gives": "port description written by the installer (often the far end)"
+      },
+      {
+        "id": "dot3StatsDuplexStatus",
+        "oid": "1.3.6.1.2.1.10.7.2.1.19",
+        "gives": "duplex: half (2) / full (3)"
+      },
+      {
+        "id": "dot1dBasePortIfIndex",
+        "oid": "1.3.6.1.2.1.17.1.4.1.2",
+        "gives": "bridge port number to ifIndex (needed to read the FDB)"
+      },
+      {
+        "id": "dot1dTpFdbPort",
+        "oid": "1.3.6.1.2.1.17.4.3.1.2",
+        "gives": "MAC to bridge port, VLAN-unaware devices"
+      },
+      {
+        "id": "dot1qTpFdbPort",
+        "oid": "1.3.6.1.2.1.17.7.1.2.2.1.2",
+        "gives": "VLAN + MAC to bridge port"
+      },
+      {
+        "id": "dot1qPvid",
+        "oid": "1.3.6.1.2.1.17.7.1.4.5.1.1",
+        "gives": "access VLAN per port"
+      },
+      {
+        "id": "dot1qVlanStaticName",
+        "oid": "1.3.6.1.2.1.17.7.1.4.3.1.1",
+        "gives": "VLAN names"
+      },
+      {
+        "id": "ipNetToMediaPhysAddress",
+        "oid": "1.3.6.1.2.1.4.22.1.2",
+        "gives": "ARP table: IP to MAC (complete only on the layer-3 gateway)"
+      },
+      {
+        "id": "lldpLocPortId",
+        "oid": "1.0.8802.1.1.2.1.3.7.1.3",
+        "gives": "local port names by LLDP port number"
+      },
+      {
+        "id": "lldpRemChassisId",
+        "oid": "1.0.8802.1.1.2.1.4.1.1.5",
+        "gives": "neighbour chassis id (usually its MAC)"
+      },
+      {
+        "id": "lldpRemPortId",
+        "oid": "1.0.8802.1.1.2.1.4.1.1.7",
+        "gives": "neighbour port"
+      },
+      {
+        "id": "lldpRemSysName",
+        "oid": "1.0.8802.1.1.2.1.4.1.1.9",
+        "gives": "neighbour name"
+      },
+      {
+        "id": "lldpRemSysDesc",
+        "oid": "1.0.8802.1.1.2.1.4.1.1.10",
+        "gives": "neighbour platform"
+      },
+      {
+        "id": "lldpRemManAddr",
+        "oid": "1.0.8802.1.1.2.1.4.2.1.4",
+        "gives": "neighbour management address"
+      },
+      {
+        "id": "entPhysicalSerialNum",
+        "oid": "1.3.6.1.2.1.47.1.1.1.1.11",
+        "gives": "serial numbers (one per stack member)"
+      },
+      {
+        "id": "entPhysicalModelName",
+        "oid": "1.3.6.1.2.1.47.1.1.1.1.13",
+        "gives": "hardware model"
+      },
+      {
+        "id": "pethPsePortDetectionStatus",
+        "oid": "1.3.6.1.2.1.105.1.1.1.6",
+        "gives": "PoE per port: delivering (3) / searching (2)"
+      },
+      {
+        "id": "pethMainPseConsumptionPower",
+        "oid": "1.3.6.1.2.1.105.1.3.1.1.4",
+        "gives": "PoE watts in use; budget is ...1.1.2"
+      },
+      {
+        "id": "upsEstimatedChargeRemaining",
+        "oid": "1.3.6.1.2.1.33.1.2.4.0",
+        "gives": "UPS battery percent; minutes left is ...2.3.0"
+      }
+    ]
+  },
+  "linkRules": [
+    "An LLDP neighbour read from the device itself is a confirmed link, with both port names.",
+    "A MAC seen on an access port (FDB) plus the ARP table of the gateway places an end device on that port: inferred, not confirmed.",
+    "A port whose FDB holds many MACs is an uplink or carries another switch / AP: do not place those MACs on it as directly attached.",
+    "Access points advertise themselves over LLDP; the switch side tells which port they are on. Wireless clients come from the controller, or from the AP's own FDB.",
+    "No answer is 'unknown', not 'down'."
+  ],
+  "families": [
+    {
+      "id": "h3c-comware",
+      "name": "H3C Comware 7",
+      "vendors": [
+        "H3C",
+        "HPE (Comware)"
+      ],
+      "identify": {
+        "enterprise": [
+          25506
+        ],
+        "sysDescr": [
+          "H3C Comware Platform Software",
+          "HPE Comware Platform Software"
+        ],
+        "ssh": "SSH-2.0-Comware",
+        "ouis": [
+          "00:0f:e2"
+        ],
+        "evidence": "documented",
+        "sshEvidence": "verified"
+      },
+      "roles": [
+        "switch",
+        "router",
+        "ac",
+        "ap"
+      ],
+      "snmp": {
+        "supported": true,
+        "enableHint": "snmp-agent; snmp-agent sys-info version v2c v3; a read-only community or a v3 user limited to the probe's address",
+        "evidence": "verified"
+      },
+      "cli": {
+        "transport": [
+          "ssh",
+          "telnet"
+        ],
+        "prompt": "<SYSNAME>",
+        "paging": "screen-length disable",
+        "readOnlyRole": "network-operator",
+        "commands": {
+          "version": "display version",
+          "inventory": "display device manuinfo",
+          "interfaces": "display interface brief",
+          "lldp": "display lldp neighbor-information list",
+          "lldpDetail": "display lldp neighbor-information verbose",
+          "mac": "display mac-address",
+          "arp": "display arp",
+          "vlan": "display vlan brief",
+          "stp": "display stp brief",
+          "poe": "display poe interface",
+          "stack": "display irf",
+          "wlanAps": "display wlan ap all",
+          "wlanClients": "display wlan client",
+          "wlanClientDetail": "display wlan client verbose"
+        },
+        "evidence": "verified",
+        "evidenceNote": "LA31: version / interface / arp / mac-address / lldp / vlan / stp over read-only SSH; wlan ap all and wlan client on the WX controller",
+        "sources": [
+          "h2z-la31"
+        ]
+      },
+      "portNaming": {
+        "scheme": "comware",
+        "examples": [
+          "GigabitEthernet1/0/1",
+          "Ten-GigabitEthernet1/0/49",
+          "FortyGigE1/0/25"
+        ],
+        "short": [
+          "GE1/0/1",
+          "XGE1/0/49",
+          "FGE1/0/25"
+        ]
+      },
+      "sysDescrTemplate": "H3C Comware Platform Software, Software Version 7.1.070, Release {release}\r\nH3C {model}\r\nCopyright (c) 2004-2026 New H3C Technologies Co., Ltd. All rights reserved.",
+      "limits": [
+        "fit APs are managed by the controller: ask the AC, not the AP",
+        "MAC addresses print as xxxx-xxxx-xxxx"
+      ],
+      "sources": [
+        "h2z-la31",
+        "iana-pen"
+      ]
+    },
+    {
+      "id": "cisco-ios",
+      "name": "Cisco IOS / IOS XE",
+      "vendors": [
+        "Cisco"
+      ],
+      "identify": {
+        "enterprise": [
+          9
+        ],
+        "sysDescr": [
+          "Cisco IOS Software",
+          "Cisco IOS XE Software"
+        ],
+        "ssh": "SSH-2.0-Cisco",
+        "ouis": [
+          "00:00:0c"
+        ],
+        "evidence": "documented"
+      },
+      "roles": [
+        "switch",
+        "router"
+      ],
+      "snmp": {
+        "supported": true,
+        "enableHint": "snmp-server community <name> RO <acl>, or a v3 user with a read view",
+        "evidence": "candidate",
+        "note": "per-VLAN FDB on older IOS needs community@vlan indexing"
+      },
+      "cli": {
+        "transport": [
+          "ssh",
+          "telnet"
+        ],
+        "prompt": "HOSTNAME> or HOSTNAME#",
+        "paging": "terminal length 0",
+        "readOnlyRole": "privilege level 1 covers most show commands",
+        "commands": {
+          "version": "show version",
+          "inventory": "show inventory",
+          "interfaces": "show interfaces status",
+          "lldp": "show lldp neighbors",
+          "lldpDetail": "show lldp neighbors detail",
+          "cdp": "show cdp neighbors detail",
+          "mac": "show mac address-table",
+          "arp": "show ip arp",
+          "vlan": "show vlan brief",
+          "stp": "show spanning-tree summary",
+          "poe": "show power inline",
+          "stack": "show switch"
+        },
+        "evidence": "candidate",
+        "sources": [
+          "vendor-cli-general"
+        ]
+      },
+      "portNaming": {
+        "scheme": "cisco-ios",
+        "examples": [
+          "GigabitEthernet1/0/1",
+          "TenGigabitEthernet1/1/1"
+        ],
+        "short": [
+          "Gi1/0/1",
+          "Te1/1/1"
+        ]
+      },
+      "sysDescrTemplate": "Cisco IOS Software [Cupertino], Catalyst L3 Switch Software (CAT9K_IOSXE), Version {release}, RELEASE SOFTWARE (fc2)\r\nTechnical Support: http://www.cisco.com/techsupport\r\nCopyright (c) 1986-2024 by Cisco Systems, Inc.",
+      "limits": [
+        "LLDP is off by default (CDP is on): an empty LLDP table does not mean no neighbours",
+        "MAC addresses print as xxxx.xxxx.xxxx"
+      ],
+      "sources": [
+        "iana-pen",
+        "vendor-cli-general"
+      ]
+    },
+    {
+      "id": "huawei-vrp",
+      "name": "Huawei VRP",
+      "vendors": [
+        "Huawei"
+      ],
+      "identify": {
+        "enterprise": [
+          2011
+        ],
+        "sysDescr": [
+          "Huawei Versatile Routing Platform",
+          "HUAWEI"
+        ],
+        "ssh": "SSH-2.0-HUAWEI",
+        "evidence": "documented"
+      },
+      "roles": [
+        "switch",
+        "router",
+        "ac",
+        "ap"
+      ],
+      "snmp": {
+        "supported": true,
+        "evidence": "candidate"
+      },
+      "cli": {
+        "transport": [
+          "ssh",
+          "telnet"
+        ],
+        "prompt": "<SYSNAME>",
+        "paging": "screen-length 0 temporary",
+        "commands": {
+          "version": "display version",
+          "inventory": "display elabel brief",
+          "interfaces": "display interface brief",
+          "lldp": "display lldp neighbor brief",
+          "mac": "display mac-address",
+          "arp": "display arp",
+          "vlan": "display vlan",
+          "stp": "display stp brief",
+          "poe": "display poe power",
+          "stack": "display stack",
+          "wlanAps": "display ap all",
+          "wlanClients": "display station all"
+        },
+        "evidence": "candidate",
+        "sources": [
+          "vendor-cli-general"
+        ]
+      },
+      "portNaming": {
+        "scheme": "huawei",
+        "examples": [
+          "GigabitEthernet0/0/1",
+          "XGigabitEthernet0/0/1"
+        ],
+        "short": [
+          "GE0/0/1",
+          "XGE0/0/1"
+        ]
+      },
+      "limits": [],
+      "sources": [
+        "iana-pen",
+        "vendor-cli-general"
+      ]
+    },
+    {
+      "id": "aruba-aoscx",
+      "name": "HPE Aruba AOS-CX / ArubaOS-Switch",
+      "vendors": [
+        "Aruba",
+        "HPE"
+      ],
+      "identify": {
+        "enterprise": [
+          47196,
+          11,
+          14823
+        ],
+        "sysDescr": [
+          "Aruba",
+          "ArubaOS",
+          "ProCurve"
+        ],
+        "evidence": "documented"
+      },
+      "roles": [
+        "switch",
+        "ac",
+        "ap"
+      ],
+      "snmp": {
+        "supported": true,
+        "evidence": "candidate"
+      },
+      "cli": {
+        "transport": [
+          "ssh"
+        ],
+        "paging": "no page",
+        "commands": {
+          "version": "show version",
+          "inventory": "show system",
+          "interfaces": "show interface brief",
+          "lldp": "show lldp neighbor-info",
+          "mac": "show mac-address-table",
+          "arp": "show arp",
+          "vlan": "show vlan",
+          "poe": "show power-over-ethernet brief"
+        },
+        "evidence": "candidate",
+        "sources": [
+          "vendor-cli-general"
+        ]
+      },
+      "portNaming": {
+        "scheme": "aruba",
+        "examples": [
+          "1/1/1"
+        ],
+        "short": [
+          "1/1/1"
+        ]
+      },
+      "limits": [
+        "three enterprise numbers are in use across product lines"
+      ],
+      "sources": [
+        "iana-pen",
+        "vendor-cli-general"
+      ]
+    },
+    {
+      "id": "ruijie-rgos",
+      "name": "Ruijie RGOS / Reyee",
+      "vendors": [
+        "Ruijie"
+      ],
+      "identify": {
+        "enterprise": [
+          4881
+        ],
+        "sysDescr": [
+          "Ruijie",
+          "RGOS"
+        ],
+        "evidence": "documented"
+      },
+      "roles": [
+        "switch",
+        "router",
+        "ac",
+        "ap"
+      ],
+      "snmp": {
+        "supported": true,
+        "evidence": "candidate"
+      },
+      "cli": {
+        "transport": [
+          "ssh",
+          "telnet"
+        ],
+        "paging": "terminal length 0",
+        "commands": {
+          "version": "show version",
+          "interfaces": "show interfaces status",
+          "lldp": "show lldp neighbors",
+          "mac": "show mac-address-table",
+          "arp": "show arp",
+          "vlan": "show vlan",
+          "poe": "show poe interfaces status",
+          "wlanAps": "show ap-config summary",
+          "wlanClients": "show ac-config client"
+        },
+        "evidence": "candidate",
+        "sources": [
+          "vendor-cli-general"
+        ]
+      },
+      "portNaming": {
+        "scheme": "cisco-like",
+        "examples": [
+          "GigabitEthernet 0/1"
+        ],
+        "short": [
+          "Gi0/1"
+        ]
+      },
+      "limits": [],
+      "sources": [
+        "iana-pen",
+        "vendor-cli-general"
+      ]
+    },
+    {
+      "id": "juniper-junos",
+      "name": "Juniper Junos",
+      "vendors": [
+        "Juniper"
+      ],
+      "identify": {
+        "enterprise": [
+          2636
+        ],
+        "sysDescr": [
+          "Juniper Networks",
+          "JUNOS"
+        ],
+        "evidence": "documented"
+      },
+      "roles": [
+        "switch",
+        "router",
+        "firewall"
+      ],
+      "snmp": {
+        "supported": true,
+        "evidence": "candidate"
+      },
+      "cli": {
+        "transport": [
+          "ssh"
+        ],
+        "paging": "set cli screen-length 0",
+        "commands": {
+          "version": "show version",
+          "inventory": "show chassis hardware",
+          "interfaces": "show interfaces terse",
+          "lldp": "show lldp neighbors",
+          "mac": "show ethernet-switching table",
+          "arp": "show arp no-resolve",
+          "vlan": "show vlans",
+          "poe": "show poe interface",
+          "stack": "show virtual-chassis"
+        },
+        "evidence": "candidate",
+        "sources": [
+          "vendor-cli-general"
+        ]
+      },
+      "portNaming": {
+        "scheme": "junos",
+        "examples": [
+          "ge-0/0/1",
+          "xe-0/1/0"
+        ],
+        "short": [
+          "ge-0/0/1"
+        ]
+      },
+      "limits": [],
+      "sources": [
+        "iana-pen",
+        "vendor-cli-general"
+      ]
+    },
+    {
+      "id": "mikrotik-routeros",
+      "name": "MikroTik RouterOS",
+      "vendors": [
+        "MikroTik"
+      ],
+      "identify": {
+        "enterprise": [
+          14988
+        ],
+        "sysDescr": [
+          "RouterOS"
+        ],
+        "tcpPorts": [
+          8291
+        ],
+        "evidence": "documented"
+      },
+      "roles": [
+        "router",
+        "switch",
+        "ap"
+      ],
+      "snmp": {
+        "supported": true,
+        "evidence": "candidate"
+      },
+      "cli": {
+        "transport": [
+          "ssh"
+        ],
+        "paging": "append 'without-paging' to print commands",
+        "commands": {
+          "version": "/system resource print",
+          "inventory": "/system routerboard print",
+          "interfaces": "/interface print",
+          "lldp": "/ip neighbor print detail",
+          "mac": "/interface bridge host print",
+          "arp": "/ip arp print",
+          "vlan": "/interface bridge vlan print",
+          "poe": "/interface ethernet poe print",
+          "wlanClients": "/interface wireless registration-table print"
+        },
+        "evidence": "candidate",
+        "sources": [
+          "vendor-cli-general"
+        ]
+      },
+      "portNaming": {
+        "scheme": "routeros",
+        "examples": [
+          "ether1",
+          "sfp-sfpplus1"
+        ],
+        "short": [
+          "ether1"
+        ]
+      },
+      "limits": [],
+      "sources": [
+        "iana-pen",
+        "vendor-cli-general"
+      ]
+    },
+    {
+      "id": "fortinet-fortios",
+      "name": "Fortinet FortiOS",
+      "vendors": [
+        "Fortinet"
+      ],
+      "identify": {
+        "enterprise": [
+          12356
+        ],
+        "sysDescr": [
+          "FortiGate",
+          "FortiSwitch",
+          "FortiAP"
+        ],
+        "ouis": [
+          "00:09:0f"
+        ],
+        "evidence": "documented"
+      },
+      "roles": [
+        "firewall",
+        "router",
+        "switch",
+        "ap"
+      ],
+      "snmp": {
+        "supported": true,
+        "enableHint": "SNMP must be allowed on the interface the probe reaches, and the probe's address listed as a host of the community",
+        "evidence": "candidate"
+      },
+      "cli": {
+        "transport": [
+          "ssh"
+        ],
+        "paging": "config system console / set output standard (a configuration change: prefer SNMP)",
+        "commands": {
+          "version": "get system status",
+          "interfaces": "get system interface physical",
+          "arp": "get system arp",
+          "routes": "get router info routing-table all",
+          "lldp": "diagnose lldprx neighbor summary"
+        },
+        "evidence": "candidate",
+        "sources": [
+          "vendor-cli-general"
+        ]
+      },
+      "portNaming": {
+        "scheme": "fortios",
+        "examples": [
+          "wan1",
+          "port1",
+          "internal1"
+        ],
+        "short": [
+          "port1"
+        ]
+      },
+      "sysDescrTemplate": "{model} v7.4.5,build2702,240723 (GA.M)",
+      "limits": [
+        "a firewall is discovered and recorded, never logged into to change anything",
+        "LLDP reception is off unless enabled per interface"
+      ],
+      "sources": [
+        "iana-pen",
+        "vendor-cli-general"
+      ]
+    },
+    {
+      "id": "ubiquiti-unifi",
+      "name": "Ubiquiti UniFi",
+      "vendors": [
+        "Ubiquiti"
+      ],
+      "identify": {
+        "enterprise": [
+          41112
+        ],
+        "sysDescr": [
+          "UniFi",
+          "USW-",
+          "UAP",
+          "U6-",
+          "UDM"
+        ],
+        "ouis": [
+          "24:a4:3c",
+          "fc:ec:da",
+          "78:8a:20"
+        ],
+        "evidence": "candidate",
+        "note": "many UniFi devices answer SNMP as plain net-snmp (enterprise 8072) or as their switch chipset: sysDescr and the OUI are the better signals"
+      },
+      "roles": [
+        "router",
+        "switch",
+        "ap"
+      ],
+      "snmp": {
+        "supported": true,
+        "enableHint": "enabled per site in the controller; coverage is thin (often no FDB or PoE tables)",
+        "evidence": "candidate"
+      },
+      "controller": {
+        "kind": "http",
+        "path": "https://{controller}/proxy/network/api/s/{site}/stat/device",
+        "gives": "all adopted devices with model, ports, uplink, clients",
+        "clients": "https://{controller}/proxy/network/api/s/{site}/stat/sta",
+        "evidence": "candidate",
+        "sources": [
+          "h2z-ai-scenario"
+        ]
+      },
+      "cli": null,
+      "portNaming": {
+        "scheme": "unifi",
+        "examples": [
+          "Port 1",
+          "SFP 1",
+          "eth0"
+        ],
+        "short": [
+          "Port 1"
+        ]
+      },
+      "sysDescrTemplate": "{model}, 7.1.26.15869, Linux 3.6.5",
+      "limits": [
+        "the controller is the authoritative source; ask for a read-only controller account before trying per-device access"
+      ],
+      "sources": [
+        "iana-pen",
+        "h2z-ai-scenario"
+      ]
+    },
+    {
+      "id": "tplink-omada",
+      "name": "TP-Link Omada / JetStream",
+      "vendors": [
+        "TP-Link"
+      ],
+      "identify": {
+        "enterprise": [
+          11863
+        ],
+        "sysDescr": [
+          "JetStream",
+          "Omada",
+          "TL-SG",
+          "EAP"
+        ],
+        "ouis": [
+          "50:c7:bf"
+        ],
+        "evidence": "candidate"
+      },
+      "roles": [
+        "router",
+        "switch",
+        "ap"
+      ],
+      "snmp": {
+        "supported": true,
+        "evidence": "candidate"
+      },
+      "controller": {
+        "kind": "http",
+        "path": "https://{controller}/api/info, then the device and client lists after login",
+        "evidence": "candidate",
+        "sources": [
+          "h2z-ai-scenario"
+        ]
+      },
+      "cli": {
+        "transport": [
+          "ssh",
+          "telnet"
+        ],
+        "commands": {
+          "version": "show system-info",
+          "interfaces": "show interface status",
+          "lldp": "show lldp neighbor-information interface",
+          "mac": "show mac address-table all",
+          "vlan": "show vlan brief",
+          "poe": "show power inline information interface"
+        },
+        "evidence": "candidate",
+        "sources": [
+          "vendor-cli-general"
+        ]
+      },
+      "portNaming": {
+        "scheme": "omada",
+        "examples": [
+          "Gi1/0/1"
+        ],
+        "short": [
+          "Gi1/0/1"
+        ]
+      },
+      "limits": [],
+      "sources": [
+        "iana-pen",
+        "h2z-ai-scenario",
+        "vendor-cli-general"
+      ]
+    },
+    {
+      "id": "apc-ups",
+      "name": "APC / Schneider UPS network card",
+      "vendors": [
+        "APC"
+      ],
+      "identify": {
+        "enterprise": [
+          318
+        ],
+        "sysDescr": [
+          "APC Web/SNMP Management Card"
+        ],
+        "ouis": [
+          "00:c0:b7"
+        ],
+        "evidence": "documented"
+      },
+      "roles": [
+        "ups"
+      ],
+      "snmp": {
+        "supported": true,
+        "note": "UPS-MIB (RFC 1628) for battery, runtime, load; the PowerNet MIB under 1.3.6.1.4.1.318.1.1.1 has more",
+        "evidence": "documented"
+      },
+      "cli": null,
+      "portNaming": {
+        "scheme": "none",
+        "examples": [],
+        "short": []
+      },
+      "sysDescrTemplate": "APC Web/SNMP Management Card (MB:v4.3.7 PF:v7.1.2 PN:apc_hw21_su_7-1-2.bin MN:AP9641) ({model})",
+      "limits": [],
+      "sources": [
+        "iana-pen",
+        "ietf-mibs"
+      ]
+    },
+    {
+      "id": "generic-snmp",
+      "name": "Anything else that answers standard SNMP",
+      "vendors": [],
+      "identify": {
+        "enterprise": [
+          8072,
+          4526,
+          171,
+          1916,
+          30065,
+          25461,
+          29671,
+          890,
+          674,
+          534,
+          3808
+        ],
+        "enterpriseNames": {
+          "171": "D-Link",
+          "534": "Eaton",
+          "674": "Dell",
+          "890": "Zyxel",
+          "1916": "Extreme Networks",
+          "3808": "CyberPower",
+          "4526": "Netgear",
+          "8072": "net-snmp (Linux based: read sysDescr)",
+          "25461": "Palo Alto Networks",
+          "29671": "Cisco Meraki",
+          "30065": "Arista"
+        },
+        "evidence": "documented"
+      },
+      "roles": [
+        "switch",
+        "router",
+        "firewall",
+        "ap",
+        "ups",
+        "host"
+      ],
+      "snmp": {
+        "supported": true,
+        "evidence": "documented"
+      },
+      "cli": null,
+      "portNaming": {
+        "scheme": "unknown",
+        "examples": [],
+        "short": []
+      },
+      "limits": [
+        "vendor is known from the enterprise number, the platform's own commands are not in the library yet"
+      ],
+      "sources": [
+        "iana-pen",
+        "ietf-mibs"
+      ]
+    }
+  ],
+  "models": [
+    {
+      "vendor": "H3C",
+      "model": "S6520X-30QC-EI",
+      "family": "h3c-comware",
+      "role": "switch",
+      "tier": "core",
+      "ports": [
+        {
+          "count": 24,
+          "speedMbps": 10000,
+          "media": "sfp+"
+        },
+        {
+          "count": 4,
+          "speedMbps": 40000,
+          "media": "qsfp+"
+        }
+      ],
+      "poeBudgetW": 0,
+      "release": "6710P03",
+      "evidence": "candidate"
+    },
+    {
+      "vendor": "H3C",
+      "model": "S5130S-52P-PWR-EI",
+      "family": "h3c-comware",
+      "role": "switch",
+      "tier": "access",
+      "ports": [
+        {
+          "count": 48,
+          "speedMbps": 1000,
+          "media": "copper",
+          "poe": true
+        },
+        {
+          "count": 4,
+          "speedMbps": 10000,
+          "media": "sfp+"
+        }
+      ],
+      "poeBudgetW": 740,
+      "release": "6348P02",
+      "evidence": "candidate"
+    },
+    {
+      "vendor": "H3C",
+      "model": "S5130S-28P-PWR-EI",
+      "family": "h3c-comware",
+      "role": "switch",
+      "tier": "access",
+      "ports": [
+        {
+          "count": 24,
+          "speedMbps": 1000,
+          "media": "copper",
+          "poe": true
+        },
+        {
+          "count": 4,
+          "speedMbps": 10000,
+          "media": "sfp+"
+        }
+      ],
+      "poeBudgetW": 370,
+      "release": "6348P02",
+      "evidence": "candidate"
+    },
+    {
+      "vendor": "H3C",
+      "model": "WX2560X",
+      "family": "h3c-comware",
+      "role": "ac",
+      "ports": [
+        {
+          "count": 2,
+          "speedMbps": 1000,
+          "media": "copper"
+        },
+        {
+          "count": 2,
+          "speedMbps": 10000,
+          "media": "sfp+"
+        }
+      ],
+      "release": "5457P02",
+      "evidence": "candidate"
+    },
+    {
+      "vendor": "H3C",
+      "model": "WA6320",
+      "family": "h3c-comware",
+      "role": "ap",
+      "wifi": "Wi-Fi 6 2x2",
+      "evidence": "candidate"
+    },
+    {
+      "vendor": "H3C",
+      "model": "WA6620",
+      "family": "h3c-comware",
+      "role": "ap",
+      "wifi": "Wi-Fi 6 4x4",
+      "evidence": "candidate"
+    },
+    {
+      "vendor": "Cisco",
+      "model": "C9300-24UX",
+      "family": "cisco-ios",
+      "role": "switch",
+      "tier": "core",
+      "ports": [
+        {
+          "count": 24,
+          "speedMbps": 10000,
+          "media": "copper"
+        },
+        {
+          "count": 4,
+          "speedMbps": 40000,
+          "media": "qsfp+"
+        }
+      ],
+      "poeBudgetW": 0,
+      "release": "17.9.5",
+      "evidence": "candidate"
+    },
+    {
+      "vendor": "Cisco",
+      "model": "C9200L-48P-4X",
+      "family": "cisco-ios",
+      "role": "switch",
+      "tier": "access",
+      "ports": [
+        {
+          "count": 48,
+          "speedMbps": 1000,
+          "media": "copper",
+          "poe": true
+        },
+        {
+          "count": 4,
+          "speedMbps": 10000,
+          "media": "sfp+"
+        }
+      ],
+      "poeBudgetW": 740,
+      "release": "17.9.5",
+      "evidence": "candidate"
+    },
+    {
+      "vendor": "Fortinet",
+      "model": "FortiGate-100F",
+      "family": "fortinet-fortios",
+      "role": "router",
+      "portNames": [
+        "wan1",
+        "wan2",
+        "port1",
+        "port2",
+        "port3",
+        "port4"
+      ],
+      "evidence": "candidate"
+    },
+    {
+      "vendor": "Fortinet",
+      "model": "FortiGate-200F",
+      "family": "fortinet-fortios",
+      "role": "router",
+      "portNames": [
+        "wan1",
+        "wan2",
+        "port1",
+        "port2",
+        "port3",
+        "port4"
+      ],
+      "evidence": "candidate"
+    },
+    {
+      "vendor": "Ubiquiti",
+      "model": "UDM-Pro",
+      "family": "ubiquiti-unifi",
+      "role": "router",
+      "portNames": [
+        "eth8 (WAN)",
+        "eth0",
+        "eth1",
+        "eth2",
+        "eth3"
+      ],
+      "evidence": "candidate"
+    },
+    {
+      "vendor": "Ubiquiti",
+      "model": "USW-24-PoE",
+      "family": "ubiquiti-unifi",
+      "role": "switch",
+      "tier": "access",
+      "ports": [
+        {
+          "count": 24,
+          "speedMbps": 1000,
+          "media": "copper",
+          "poe": true
+        },
+        {
+          "count": 2,
+          "speedMbps": 1000,
+          "media": "sfp"
+        }
+      ],
+      "poeBudgetW": 95,
+      "evidence": "candidate"
+    },
+    {
+      "vendor": "Ubiquiti",
+      "model": "U6-LR",
+      "family": "ubiquiti-unifi",
+      "role": "ap",
+      "wifi": "Wi-Fi 6 4x4",
+      "evidence": "candidate"
+    },
+    {
+      "vendor": "APC",
+      "model": "Smart-UPS SRT 3000",
+      "family": "apc-ups",
+      "role": "ups",
+      "evidence": "candidate"
+    },
+    {
+      "vendor": "APC",
+      "model": "Smart-UPS 1500",
+      "family": "apc-ups",
+      "role": "ups",
+      "evidence": "candidate"
+    }
+  ],
+  "counts": {
+    "families": 12,
+    "models": 15,
+    "evidence": {
+      "verified": 3,
+      "documented": 12,
+      "candidate": 21
+    }
+  }
+}
