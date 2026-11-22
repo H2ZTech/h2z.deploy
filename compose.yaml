@@ -274,6 +274,8 @@ services:
       - ./scripts/cf-tunnel.mjs:/agent/cf-tunnel.mjs:ro
       - ./scripts/muse.mjs:/agent/muse.mjs:ro
       - host-agent:/run/h2z-host
+      # edge-link data volume: host-agent (root) reads status.json (pair QR / state) and writes lan.json; the dir is 0700 owned by the edge-link user
+      - edge-link-data:/edge-link
       # H2Z OS 整包升级的暂存目录（H2Z OS 上链接到数据盘 /data/h2z-upgrade；别的机器上只是个空目录）
       - /var/lib/h2z/upgrade:/upgrade
       - /etc/h2z:/host/etc/h2z
