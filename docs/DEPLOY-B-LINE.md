@@ -107,8 +107,8 @@ docker compose up -d --wait --wait-timeout 180
 启动后：
 
 ```bash
-node scripts/seed-project.mjs   # 建默认项目
-node scripts/smoke.mjs          # 冒烟；--full 为完整验收
+sudo node scripts/seed-project.mjs   # 建默认项目
+sudo node scripts/smoke.mjs        # 冒烟；--full 为完整验收
 ```
 
 ## 4. 验收清单（每个站点都做）

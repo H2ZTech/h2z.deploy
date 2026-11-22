@@ -195,8 +195,12 @@ fi
 # ---------- 8. Seed the default project + smoke test ----------
 say "8/8 Seeding the default project and running the smoke test"
 if [ "$DRY" = 1 ]; then echo "[dry-run] node scripts/seed-project.mjs && node scripts/smoke.mjs"; else
-  dk "cd '$DIR' && node scripts/seed-project.mjs" || echo "seed-project failed (you can re-run it later)"
-  dk "cd '$DIR' && node scripts/smoke.mjs" || echo "the smoke test has failures, see the output above"
+  # secrets/ is root:20001 mode 640 after init (by design), so the login user cannot read the admin token: run these as root
+  # when we are root, and hand any file they create back to the login user.
+  rt() { if [ "$(id -u)" = 0 ]; then sh -c "$1"; else dk "$1"; fi; }
+  rt "cd '$DIR' && node scripts/seed-project.mjs" || echo "seed-project failed (you can re-run it later)"
+  rt "cd '$DIR' && node scripts/smoke.mjs" || echo "the smoke test has failures, see the output above"
+  [ "$(id -u)" = 0 ] && [ -e "$DIR/runtime/smoke-results.json" ] && chown "$U" "$DIR/runtime/smoke-results.json" || true
 fi
 
 IP=$(hostname -I 2>/dev/null | awk '{print $1}')
