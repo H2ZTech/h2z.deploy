@@ -21,6 +21,8 @@
 # All images come from GHCR (ghcr.io/h2ztech/, public, no login). The script never logs in to any image registry.
 # Safe to re-run: steps that are already done are skipped.
 set -eu
+# A strict login umask (077) would leave the checked-out config unreadable to containers (EMQX failed with eacces).
+umask 022
 
 REPO_SLUG=${REPO_SLUG:-H2ZTech/h2z.deploy}   # public deployment repo, no token needed
 REPO_URL=${REPO_URL:-https://github.com/$REPO_SLUG.git}
@@ -148,6 +150,11 @@ EOF"
   esac
 fi
 [ "$DRY" = 1 ] || [ -f "$DIR/compose.yaml" ] || die "no compose.yaml in the code directory: $DIR"
+# Make tracked files (config, scripts) readable by containers even if the checkout ran under a strict umask.
+# Only tracked files are touched, never .env / secrets / runtime.
+if [ "$DRY" != 1 ]; then
+  as_user sh -c 'cd "$1" && git ls-files -z | xargs -0 chmod go+rX && git ls-files | sed -n "s#/[^/]*\$##p" | sort -u | xargs chmod go+rx' sh "$DIR"
+fi
 
 # ---------- 4. Host layer (Docker, watchdog, ...) ----------
 say "4/8 Installing Docker and the host layer (host/setup-host.sh --network=$NET)"
