@@ -4,9 +4,8 @@
 # One command, on the target Linux machine (no token or account needed):
 #   curl -fsSL https://raw.githubusercontent.com/H2ZTech/h2z.deploy/main/install.sh | sudo sh
 #   To only see what it would do:  ... | sudo sh -s -- --dry-run
-# Code comes from the public repo H2ZTech/h2z.deploy (the deployment files are synced there automatically from the
-# private h2z.security repo, see .github/workflows/publish-deploy-mirror.yml). Images come from GHCR, also public.
-# Internal use, pulling from the private repo: REPO_SLUG=H2ZTech/h2z.security GH_TOKEN=<read-only token> sudo -E sh ...
+# Code comes from the public repo H2ZTech/h2z.deploy. Images come from GHCR, also public. No token or account is needed.
+# To pull from another repo (a fork, say): REPO_SLUG=<owner>/<repo> sudo -E sh ... ; for a private one add GH_TOKEN=<read-only token>
 #   or --auth deploykey (generates a read-only SSH key and waits for you to add it to GitHub Deploy keys).
 #
 # Options:

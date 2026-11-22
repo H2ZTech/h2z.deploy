@@ -69,17 +69,9 @@ curl -fsSL https://raw.githubusercontent.com/H2ZTech/h2z.deploy/main/install.sh 
 
 常用选项：`--dir`、`--branch`、`--network`（默认 skip，远程装机不碰网口）、`--no-start`（只准备不启动）、`--force`（arm64 镜像检查有 FAIL 也继续）、`--dry-run`。
 
-### 维护者的一次性设置（装机的人不需要做）
+### 维护者说明
 
-公开仓库 `H2ZTech/h2z.deploy` 由私有仓库 `h2z.security` 的 workflow `publish-deploy-mirror.yml` 自动同步（每次 push main），只同步部署需要的白名单文件（compose、scripts、config、host、camera-library、yolo、models、edge-link、docker 和三份部署文档），不含内部文档、测试、发布签名脚本和 os 安装盘源码。设置步骤：
-
-1. 在 GitHub 的 H2ZTech 组织下建一个**公开**仓库 `h2z.deploy`（空仓库即可）。
-2. 建一个 fine-grained token：Resource owner 选 H2ZTech，只选仓库 `h2z.deploy`，权限只给 Contents: **Read and write**，有效期选 90 天到 1 年。
-3. 到私有仓库 `h2z.security` → Settings → Secrets and variables → Actions → New repository secret，名字 `DEPLOY_MIRROR_TOKEN`，值是上一步的 token。
-4. 到 Actions → publish-deploy-mirror → Run workflow 跑一次，然后确认公开仓库里出现了 `install.sh`。
-5. 确认 GHCR 上各镜像包都是 Public。
-
-没设 `DEPLOY_MIRROR_TOKEN` 时这个 workflow 会直接跳过，不影响其它流程。内部人员想从私有仓库取代码：`REPO_SLUG=H2ZTech/h2z.security` 加 `GH_TOKEN`（只读）运行，或用 `--auth deploykey`。
+本仓库 `H2ZTech/h2z.deploy` 是 B 线部署的唯一来源，直接在这里改、直接推 main，不再从任何私有仓库同步。仓库和镜像都必须保持公开：确认 GHCR 上各镜像包都是 Public，装机的人才不需要账号或 token。
 
 下面第 3 节是脚本背后的手动步骤，出问题时可以对照。
 
