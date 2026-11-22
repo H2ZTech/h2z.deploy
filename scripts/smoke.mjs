@@ -24,8 +24,8 @@ function inside(service, code) {
   try { return execFileSync('docker',['compose','exec','-T',service,'node','-e',code],{encoding:'utf8',timeout:30000,stdio:['ignore','pipe','pipe']}).trim(); }
   catch { throw Error('container probe failed: '+service); }
 }
-// 瘦底座（compose.lean.yaml）里没装的扩展包没有 emqx / h2z-api / Node-RED 这些服务：它们不在 compose 配置里就跳过对应检查；
-// 在配置里的（板子、开发机、装了包的 H2Z OS）照旧检查，没起来就算失败——和以前一样。读不出配置时也全检查。
+// In the lean base (compose.lean.yaml) extension packs that are not installed have no emqx / h2z-api / Node-RED services: their checks are skipped when they are not in the compose config;
+// services that are in the config (boards, dev machines, H2Z OS with the pack installed) are checked as before and count as failures if they are not up. If the config cannot be read, everything is checked.
 let configured = null;
 try { configured = new Set(execFileSync('docker',['compose','config','--services'],{encoding:'utf8',timeout:30000,stdio:['ignore','pipe','pipe']}).split(/\r?\n/).map(x=>x.trim()).filter(Boolean)); } catch { configured = null; }
 const needs = (service, fn) => async () => {
@@ -54,24 +54,24 @@ await check('PostgreSQL connection and camera schema',()=>assert(inside('backend
 await check('EMQX authenticated MQTT round trip',needs('emqx',()=>assert(inside('backend',`const mqtt=require('mqtt');const topic='security/verify/'+Date.now();const c=mqtt.connect(process.env.MQTT_BROKER_URL);const timer=setTimeout(()=>process.exit(1),12000);c.on('connect',()=>c.subscribe(topic,{qos:1},err=>{if(err)process.exit(1);c.publish(topic,'verification',{qos:1})}));c.on('message',(t,b)=>{if(t===topic&&b.toString()==='verification'){clearTimeout(timer);console.log('ok');c.end()}});c.on('error',()=>process.exit(1));`)==='ok','MQTT failed')));
 await check('ZLM API secret and configured recording hook',()=>assert(inside('backend',`fetch('http://zlm/index/api/getServerConfig?secret='+process.env.ZLM_SECRET).then(r=>r.json()).then(v=>{if(v.code!==0||!v.data[0]['hook.on_record_mp4'].includes('backend:3001/security/zlm/hook'))process.exit(1);console.log('ok')}).catch(()=>process.exit(1))`)==='ok','ZLM configuration failed'));
 await check('nginx hides ZLM administrative API',async()=>assert((await http('/media/index/api/getServerConfig')).status===403,'ZLM API exposed'));
-// 每个服务的日志都要有上限（LA18 2026-11-01 td-log 39 GB 写满系统盘之后加的）
+// Every service's logs must have a cap (added after a 39 GB td-log filled a system disk)
 await check('every service has log limits (compose)',()=>{const p=checkLogLimits(composeConfig());assert(!p.length,p.join('；'));});
-// 摄像头库（camera-library/）：数据过门禁、library.json 合规且和数据一致，并且 compose 把它只读挂进了 backend。
-// 后端读不到库会退回内置最小集而不会报错，所以这里要明确查，不然库悄悄没生效也没人知道。
+// Camera library (camera-library/): data passes the gate, library.json is valid and consistent with the data, and compose mounts it read-only into the backend.
+// If the backend cannot read the library it falls back to a built-in minimal set without an error, so it is checked explicitly here; otherwise nobody would notice the library silently not taking effect.
 await check('camera library is valid, in sync and mounted read-only into backend',()=>{
   const p=checkCameraLibrary();assert(!p.length,p.join('；'));
   const b=composeConfig().services.backend;
   const env=Array.isArray(b.environment)?Object.fromEntries(b.environment.map(x=>x.split(/=(.*)/s).slice(0,2))):b.environment;
-  assert(env.IOC_CAMERA_LIBRARY_FILE==='/camera-library/library.json','backend 没设 IOC_CAMERA_LIBRARY_FILE');
+  assert(env.IOC_CAMERA_LIBRARY_FILE==='/camera-library/library.json','backend does not set IOC_CAMERA_LIBRARY_FILE');
   const m=(b.volumes||[]).find(v=>v.target==='/camera-library');
-  assert(m&&m.read_only===true,'backend 没有只读挂载 ./camera-library');
+  assert(m&&m.read_only===true,'backend does not mount ./camera-library read-only');
 });
-// 录像机库 / 网络设备库 / AI 摘要和摄像头库放在同一个目录（同一个只读挂载）：数据过门禁、产物和数据一致、摘要是最新的。
+// The recorder library / network device library / AI digest live in the same directory as the camera library (same read-only mount): data passes the gate, generated output matches the data, the digest is current.
 await check('recorder and network-device libraries are valid and in sync',()=>{const p=checkDeviceLibraries(undefined,buildAiDigest);assert(!p.length,p.join('；'));});
 await check('TDengine log directory under 2 GB',()=>{
   let out;
   try { out=execFileSync('docker',['compose','exec','-T','tdengine','du','-sm','/var/log/taos'],{encoding:'utf8',timeout:30000,stdio:['ignore','pipe','pipe']}); }
-  catch { return 'skip'; } // 没起 tdengine（没开 recorder / telemetry）
+  catch { return 'skip'; } // tdengine is not running (recorder / telemetry not enabled)
   const mb=Number(out.trim().split(/\s+/)[0]);
   assert(Number.isFinite(mb)&&mb<2048,'td-log '+mb+' MB');
 });

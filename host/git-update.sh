@@ -1,17 +1,17 @@
 #!/bin/sh
-# 旁挂机器（不是 H2Z OS）的页面更新：IOC 后台「设备与系统 → 升级」点「升级」后，host-agent 用 systemd-run 在宿主上起这个脚本。
-#   git-update.sh <部署目录> <属主> [升级状态目录，默认 /var/lib/h2z/upgrade]
-# 以 root 跑（要补宿主层），但 git / docker compose 一律以部署目录的属主身份跑（他在 docker 组里、有 GitHub 部署密钥，.git 里的文件不会变成 root 的）。
-# 为什么不在 host-agent 容器里跑：scripts/update.sh 会重建 host-agent 和 backend，脚本不能是它们的子进程。
-# 步骤（进度写进 <升级状态目录>/state.json，和 H2Z OS 整包升级同一个文件、同一套界面，job = git）：
-#   backing-up  备份数据库到 <升级状态目录>/backups/（留最近 3 份）；备份不成功就不更新
-#   switching   scripts/update.sh（查空间 → git pull → 拉镜像 → up -d --wait → 清旧镜像）；跑的时候每 30 秒更新一次时间戳，界面据此判断还在跑
-#   补宿主层    host/setup-host.sh（只在有待补项时；git pull 带来的看门狗等更新）
-#   done / failed  日志在 <升级状态目录>/git-update.log
-# 不做自动回退：update.sh 失败时旧容器多半还在跑；要回退见 docs/OPERATIONS.md（git checkout 旧提交 + docker compose up -d，库用备份恢复）。
+# Page-triggered update for side-car machines (not H2Z OS): after "Upgrade" is clicked in IOC admin (Device & system -> Upgrade), host-agent starts this script on the host with systemd-run.
+#   git-update.sh <deploy dir> <owner> [upgrade state dir, default /var/lib/h2z/upgrade]
+# Runs as root (it may have to complete the host layer), but git / docker compose always run as the owner of the deploy directory (who is in the docker group and holds the GitHub access, so files in .git never become root-owned).
+# Why not inside the host-agent container: scripts/update.sh rebuilds host-agent and backend, so this script must not be their child process.
+# Steps (progress goes to <upgrade state dir>/state.json, the same file and UI as the H2Z OS full-image upgrade, job = git):
+#   backing-up  back up the database to <upgrade state dir>/backups/ (keep the latest 3); no update if the backup fails
+#   switching   scripts/update.sh (check space -> git pull -> pull images -> up -d --wait -> prune old images); the timestamp is refreshed every 30 s while it runs so the UI knows it is still alive
+#   host layer  host/setup-host.sh (only when something is pending; e.g. watchdog updates brought by git pull)
+#   done / failed  log is in <upgrade state dir>/git-update.log
+# No automatic rollback: when update.sh fails the old containers are usually still running; for a rollback see docs/OPERATIONS.md (git checkout the old commit + docker compose up -d, restore the database from the backup).
 set -u
-REPO=${1:?部署目录}
-OWNER=${2:?属主}
+REPO=${1:?deploy dir}
+OWNER=${2:?owner}
 UPG=${3:-/var/lib/h2z/upgrade}
 STATE="$UPG/state.json"
 LOG="$UPG/git-update.log"
@@ -25,7 +25,7 @@ START=$(now)
 FROM=$(as_owner git -C "$REPO" rev-parse --short HEAD 2>/dev/null || echo '?')
 TO=''
 PHASE=backing-up
-MSG='备份数据库'
+MSG='Backing up the database'
 FINISHED=''
 BACKUP=''
 write_state() {
@@ -35,7 +35,7 @@ write_state() {
   printf '{"job":"git","source":"online","phase":"%s","message":"%s","from":{"version":"%s","commit":"%s"},"to":{"version":"%s","commit":"%s"},"startedAt":"%s","updatedAt":"%s","finishedAt":%s,"backup":%s}\n' \
     "$PHASE" "$(clean "$MSG")" "$FROM" "$FROM" "${TO:-}" "${TO:-}" "$START" "$(now)" "$fin" "$bk" > "$tmp" && mv -f "$tmp" "$STATE"
 }
-finish() { # 阶段 消息
+finish() { # phase message
   PHASE=$1; MSG=$2; FINISHED=$(now)
   [ -n "${HB:-}" ] && kill "$HB" 2>/dev/null
   write_state
@@ -46,9 +46,9 @@ log() { echo "[$(now)] $*" >> "$LOG"; }
 log "git update start repo=$REPO owner=$OWNER from=$FROM"
 write_state
 
-# ---- 1. 备份数据库
+# ---- 1. Back up the database
 cid=$(docker ps -q --filter label=com.docker.compose.service=postgres | head -1)
-if [ -z "$cid" ]; then finish failed "找不到数据库容器，不能备份；没有更新"; log "no postgres container"; exit 1; fi
+if [ -z "$cid" ]; then finish failed "Database container not found, cannot back up; nothing was updated"; log "no postgres container"; exit 1; fi
 name="db-$(date -u +%Y%m%d-%H%M%S).sql.gz"
 if docker exec "$cid" sh -c 'pg_dump -U "$POSTGRES_USER" "$POSTGRES_DB" | gzip' > "$UPG/backups/$name" 2>>"$LOG" && [ -s "$UPG/backups/$name" ] && gunzip -t "$UPG/backups/$name" 2>>"$LOG"; then
   BACKUP=$name
@@ -56,13 +56,13 @@ if docker exec "$cid" sh -c 'pg_dump -U "$POSTGRES_USER" "$POSTGRES_DB" | gzip' 
   log "backup $name"
 else
   rm -f "$UPG/backups/$name"
-  finish failed "数据库备份失败；没有更新（日志 $LOG）"; exit 1
+  finish failed "Database backup failed; nothing was updated (log $LOG)"; exit 1
 fi
 
-# ---- 2. 更新
-PHASE=switching; MSG='更新代码和镜像、重启服务'
+# ---- 2. Update
+PHASE=switching; MSG='Updating code and images, restarting services'
 write_state
-# 心跳的输出接到 /dev/null：不然 sleep 子进程会一直占着调用方的管道（测试里 spawnSync 会等它 30 秒）
+# Send the heartbeat output to /dev/null: otherwise the sleep child keeps the caller's pipe open (spawnSync in the tests would wait 30 s for it)
 ( while :; do sleep 30; write_state; done ) >/dev/null 2>&1 &
 HB=$!
 as_owner sh -c 'cd "$1" && sh scripts/update.sh' sh "$REPO" >> "$LOG" 2>&1
@@ -70,16 +70,16 @@ rc=$?
 TO=$(as_owner git -C "$REPO" rev-parse --short HEAD 2>/dev/null || echo '')
 if [ "$rc" -ne 0 ]; then
   last=$(tail -n 3 "$LOG" | tr '\n' ' ')
-  finish failed "update.sh 没成功（退出码 $rc）：$last（日志 $LOG）"
+  finish failed "update.sh did not succeed (exit code $rc): $last (log $LOG)"
   log "update.sh failed rc=$rc"
   exit 1
 fi
 
-# ---- 3. 宿主层（git pull 可能带来看门狗 / 网口脚本的更新；有待补项才跑）
+# ---- 3. Host layer (git pull may bring watchdog / NIC script updates; runs only when something is pending)
 if [ -f "$REPO/host/setup-host.sh" ] && ! sh "$REPO/host/setup-host.sh" --check >/dev/null 2>&1; then
   log "host layer pending → setup-host.sh"
-  sh "$REPO/host/setup-host.sh" >> "$LOG" 2>&1 || log "setup-host.sh 没全成功（不挡更新）"
+  sh "$REPO/host/setup-host.sh" >> "$LOG" 2>&1 || log "setup-host.sh did not fully succeed (does not block the update)"
 fi
 
-finish done "已更新到 ${TO:-新版本}"
+finish done "Updated to ${TO:-the new version}"
 log "done to=$TO"

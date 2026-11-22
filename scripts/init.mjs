@@ -54,8 +54,8 @@ put('.env', env);
 const e = Object.fromEntries(env.split(/\r?\n/).filter(l => /^[A-Z_]+=/.test(l)).map(l => { const i = l.indexOf('='); return [l.slice(0,i),l.slice(i+1)]; }));
 const secretPaths = SECRET_PATHS;
 const missingSecrets = secretPaths.filter(p => !existsSync('secrets/' + p));
-// 只在「写不进去」时才报错：secrets/ 已存在但当前用户没有写权限（常见：以前被 root / 容器建过）；
-// secrets/ 还不存在时，只要所在目录可写，普通用户自己建就行（2026-11-09 CI 以普通用户跑，原来这里一律报错）
+// Only report an error when it cannot be written: secrets/ already exists but the current user has no write permission (common: it was created earlier by root / a container);
+// when secrets/ does not exist yet, a regular user can create it as long as the parent directory is writable (CI runs as a regular user, and this used to always fail)
 const canWriteSecrets = (() => { try { accessSync(existsSync('secrets') ? 'secrets' : '.', constants.W_OK); return true; } catch { return false; } })();
 if (missingSecrets.length && process.platform === 'linux' && process.getuid() !== 0 && !canWriteSecrets) {
   const owner = existsSync('secrets') ? statSync('secrets').uid : -1;
