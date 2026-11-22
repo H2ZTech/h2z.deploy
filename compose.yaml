@@ -193,6 +193,7 @@ services:
       - storage-ctl:/run/h2z-storage
       - /var/lib/h2z/watchdog:/run/h2z-watchdog:ro
       - host-agent:/run/h2z-host
+      - edge-link-data:/edge-link
       - ./runtime/recorder:/recorder-config
       # 整个目录只读挂（不是单个文件）：git pull 换文件后容器里立刻是新内容
       - ./camera-library:/camera-library:ro
@@ -259,7 +260,14 @@ services:
       # Bump when host-agent.mjs gains an endpoint: the script is a bind mount, so a changed value here is what
       # makes `docker compose up -d` recreate the container with the new script (l2-scan: layer-2 neighbour scan, camera-discover: ONVIF WS-Discovery + Hikvision SADP,
       # vlans: 802.1Q sub-interfaces on the LAN port, multiport: several wired ports, system: device info / time / power / name, upgrade: H2Z OS full-package upgrade, kiosk: installs the local-display scripts after git pull).
-      H2Z_AGENT_FEATURES: l2-scan,vlans,metrics,camera-discover,multiport,system,upgrade,online-update,kiosk,tailscale-enable,upgrade-reset,cloudflare-tunnel,meta-muse,git-update
+      H2Z_AGENT_FEATURES: l2-scan,vlans,metrics,camera-discover,multiport,system,upgrade,online-update,kiosk,tailscale-enable,upgrade-reset,cloudflare-tunnel,meta-muse,git-update,link
+      # iroh edge (phone app pairing): host-agent summarises LAN addresses + edge-link status (GET /v1/link); dir = edge-link data volume
+      H2Z_LINK_DIR: /edge-link
+      H2Z_LINK_HTTP_BIND: ${HTTP_BIND:-127.0.0.1}
+      H2Z_LINK_HTTP_PORT: ${HTTP_PORT:-8096}
+      H2Z_LINK_IOC_AUTH: ${IOC_AUTH:-none}
+      H2Z_LINK_IROH_PORT: ${H2Z_IROH_PORT:-11204}
+      H2Z_LINK_LAN_AUTH: ${H2Z_LAN_AUTH:-on}
     volumes:
       - ./scripts/host-agent.mjs:/agent/host-agent.mjs:ro
       - ./scripts/online-update.mjs:/agent/online-update.mjs:ro
@@ -497,9 +505,17 @@ services:
   web:
     <<: *common
     image: ${FRONTEND_IMAGE}
-    ports: ['${HTTP_BIND:-127.0.0.1}:${HTTP_PORT:-8096}:80']
+    # three entrances (config/nginx-lan): 80 = public (login required when H2Z_LAN_AUTH=on), 81 = internal (edge-link upstream, unpublished),
+    # 82 = local screen (127.0.0.1 only, no login). If the backend predates GET /account/check set H2Z_LAN_AUTH=off in .env.
+    ports:
+      - '${HTTP_BIND:-127.0.0.1}:${HTTP_PORT:-8096}:80'
+      - '127.0.0.1:${LOCAL_HTTP_PORT:-8097}:82'
     volumes:
-      - ./config/nginx.conf:/etc/nginx/conf.d/default.conf:ro
+      - ./config/nginx-lan/default.conf:/etc/nginx/conf.d/default.conf:ro
+      - ./config/nginx-lan/server-common.inc:/etc/nginx/h2z/server-common.inc:ro
+      - ./config/nginx-lan/locations.inc:/etc/nginx/h2z/locations.inc:ro
+      - ./config/nginx-lan/api-proxy.inc:/etc/nginx/h2z/api-proxy.inc:ro
+      - ./config/nginx-lan/lan-auth-${H2Z_LAN_AUTH:-on}.inc:/etc/nginx/h2z/lan-auth.inc:ro
       - ./config/web-config.js:/usr/share/nginx/html/ioc/config.js:ro
     depends_on:
       backend: {condition: service_healthy}
@@ -686,6 +702,45 @@ services:
       timeout: 10s
       retries: 20
     mem_limit: 1024m
+  # iroh edge: phone/desktop reach this box through iroh (hole punching, relay fallback); image is multi-arch (amd64 + arm64)
+  edge-link:
+    image: ${EDGE_LINK_IMAGE:-ghcr.io/h2ztech/h2z-edge-link:latest}
+    restart: unless-stopped
+    networks: [security]
+    command: [edge, --upstream, 'http://web:81', --key-file, /data/edge.key, --net, n0]
+    environment:
+      RUST_LOG: ${EDGE_LINK_LOG:-edge_link=info,iroh=warn}
+      # 令牌鉴权：未认领 = 锁死，扫码认领后每个请求要云端令牌。EDGE_OPEN=1 只在过渡期用（升级手册 docs/link/edge-upgrade-and-identity.md）：
+      # 未认领时不设防，后台显著提示「开放模式」，认领成功后自动失效。
+      EDGE_OPEN: ${EDGE_OPEN:-0}
+      # 经中继只放子码流并限速；并发上限；时钟偏差告警 / 拒绝外网（秒）；审计文件轮转（登记在 scripts/log-limits.mjs）
+      H2Z_RELAY_MAX_KBPS: ${H2Z_RELAY_MAX_KBPS:-6000}
+      H2Z_MAX_STREAMS_CONN: ${H2Z_MAX_STREAMS_CONN:-32}
+      H2Z_MAX_STREAMS: ${H2Z_MAX_STREAMS:-128}
+      H2Z_MAX_CONNS: ${H2Z_MAX_CONNS:-32}
+      H2Z_CLOCK_WARN_SEC: '60'
+      H2Z_CLOCK_MAX_SEC: '300'
+      H2Z_AUDIT_MAX_BYTES: '5242880'
+      H2Z_AUDIT_KEEP: '1'
+      # 审计上传云端：云端接口还没有（契约 §12 提案），默认关，审计只在本机
+      H2Z_AUDIT_UPLOAD: ${H2Z_AUDIT_UPLOAD:-0}
+      # 固定 iroh UDP 端口（契约 §13.1）：同局域网的手机直接拨 <录像机局域网 IP>:11204，不打洞、不经中继。
+      H2Z_IROH_PORT: ${H2Z_IROH_PORT:-11204}
+    ports:
+      - '${H2Z_IROH_PORT:-11204}:${H2Z_IROH_PORT:-11204}/udp'
+    volumes: [edge-link-data:/data]
+    # 只等页面壳「已启动」；不等联网：断网时它照常起来，状态显示「连接中 / 离线」，网络恢复后自己连上。
+    depends_on:
+      web: {condition: service_started}
+    healthcheck:
+      test: [CMD, edge-link, health]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+    logging:
+      driver: json-file
+      options: {max-size: '5m', max-file: '2'}
+    mem_limit: 128m
 networks:
   security: {}
 volumes:
@@ -702,6 +757,7 @@ volumes:
   storage-state: {}
   storage-ctl: {}
   host-agent: {}
+  edge-link-data: {}
   tailscale-state: {}
   tailscale-socket: {}
   tailscale-cli: {}
