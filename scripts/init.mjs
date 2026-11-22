@@ -50,6 +50,10 @@ if (hostLsm && !hostLsm.split(',').includes('landlock') && /^DSH_SANDBOX_MODE=\s
   env = `${env.trimEnd()}\nDSH_SANDBOX_MODE=danger-full-access\n`;
   console.log(`Kernel has no Landlock (LSMs: ${hostLsm}); DSH_SANDBOX_MODE=danger-full-access written to .env.`);
 }
+// The local recorder is part of the product but lives behind the compose profile "recorder": without this line
+// `docker compose up -d` never starts it and the Recording page reports "recorder is not running".
+// Only added when the operator has not set COMPOSE_PROFILES themselves.
+if (!/^COMPOSE_PROFILES=/m.test(env)) env = `${env.trimEnd()}\nCOMPOSE_PROFILES=recorder\n`;
 put('.env', env);
 const e = Object.fromEntries(env.split(/\r?\n/).filter(l => /^[A-Z_]+=/.test(l)).map(l => { const i = l.indexOf('='); return [l.slice(0,i),l.slice(i+1)]; }));
 const secretPaths = SECRET_PATHS;

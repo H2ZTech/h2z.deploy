@@ -97,6 +97,8 @@ if [ -f host/setup-host.sh ] && ! sh host/setup-host.sh --check >/dev/null 2>&1;
   elif sudo -n true 2>/dev/null; then sudo sh host/setup-host.sh || echo "Note: the host layer was not fully completed (see the output above); the update goes on"
   else echo "Note: the host layer has pending items (see them with sh host/setup-host.sh --check); after the update run: sudo sh host/setup-host.sh"; fi
 fi
+# Older installs have no COMPOSE_PROFILES in .env, so the recorder (profile "recorder") was never started: add it once, never override an existing choice.
+if [ -f .env ] && ! grep -q '^COMPOSE_PROFILES=' .env; then printf '\nCOMPOSE_PROFILES=recorder\n' >> .env; echo "update: enabled the recorder profile (COMPOSE_PROFILES=recorder) in .env"; fi
 { [ -f scripts/budget.sh ] && sh scripts/budget.sh; } || true   # recompute the transcode budget from total machine memory (ZLM memory cap + transcode streams); values written by hand outside the .env auto block are left alone
 docker compose config --quiet
 docker compose pull --ignore-pull-failures
