@@ -1,74 +1,75 @@
 #!/bin/sh
-# B 线一键部署：在一台全新的 Debian / Ubuntu 机器（x86_64 或 arm64）上，从零装到服务启动。
+# B-line one-command install: take a fresh Debian / Ubuntu machine (x86_64 or arm64) from nothing to running services.
 #
-# 一条命令（在目标 Linux 上，不需要任何 token / 账号）：
+# One command, on the target Linux machine (no token or account needed):
 #   curl -fsSL https://raw.githubusercontent.com/H2ZTech/h2z.deploy/main/install.sh | sudo sh
-#   先只看会做什么：... | sudo sh -s -- --dry-run
-# 代码来自公开仓库 H2ZTech/h2z.deploy（由私有仓库 h2z.security 自动同步部署所需文件，见
-# .github/workflows/publish-deploy-mirror.yml）；镜像来自 GHCR，也是公开的。
-# 内部人员要从私有仓库取代码：REPO_SLUG=H2ZTech/h2z.security GH_TOKEN=github_pat_xxx（只读 token）sudo -E sh ...
-#   或 --auth deploykey（生成只读 SSH key，等你加到 GitHub Deploy keys）。
+#   To only see what it would do:  ... | sudo sh -s -- --dry-run
+# Code comes from the public repo H2ZTech/h2z.deploy (the deployment files are synced there automatically from the
+# private h2z.security repo, see .github/workflows/publish-deploy-mirror.yml). Images come from GHCR, also public.
+# Internal use, pulling from the private repo: REPO_SLUG=H2ZTech/h2z.security GH_TOKEN=<read-only token> sudo -E sh ...
+#   or --auth deploykey (generates a read-only SSH key and waits for you to add it to GitHub Deploy keys).
 #
-# 选项：
-#   --dir PATH      代码目录（默认 /opt/h2z.security，和 H2Z OS 安装盘一致，属主是登录用户）
-#   --branch NAME   分支（默认 main）
-#   --auth MODE     none | token | deploykey（默认：设了 GH_TOKEN 用 token，否则 none）
-#   --network MODE  传给 host/setup-host.sh 的 --network（默认 skip：远程装机不碰网口，装好后再手动处理）
-#   --no-start      装好工具、拉好代码、初始化配置，但不 docker compose up
-#   --force         arm64 镜像检查有 FAIL 也继续
-#   --yes           保留的兼容选项（没有终端时脚本本来就不会提问）
-#   --dry-run       不改任何东西
+# Options:
+#   --dir PATH      code directory (default /opt/h2z.security, same as the H2Z OS installer; owned by the login user)
+#   --branch NAME   branch (default main)
+#   --auth MODE     none | token | deploykey (default: token if GH_TOKEN is set, otherwise none)
+#   --network MODE  passed to host/setup-host.sh as --network (default skip: a remote install must not touch NICs)
+#   --no-start      install tools, fetch code, initialize config, but do not run docker compose up
+#   --force         continue even if the arm64 image check reports FAIL
+#   --yes           kept for compatibility (the script never prompts when there is no terminal anyway)
+#   --dry-run       change nothing
 #
-# 镜像全部来自 GHCR（ghcr.io/h2ztech/，公开，免登录）；脚本不会登录任何镜像仓库。
-# 可以重复跑：做过的步骤自动跳过。
+# All images come from GHCR (ghcr.io/h2ztech/, public, no login). The script never logs in to any image registry.
+# Safe to re-run: steps that are already done are skipped.
 set -eu
 
-REPO_SLUG=${REPO_SLUG:-H2ZTech/h2z.deploy}   # 公开的部署镜像仓库，免 token
+REPO_SLUG=${REPO_SLUG:-H2ZTech/h2z.deploy}   # public deployment repo, no token needed
 REPO_URL=${REPO_URL:-https://github.com/$REPO_SLUG.git}
 BRANCH=main; DIR=; AUTH=; NET=skip; START=1; FORCE=0; YES=0; DRY=0
 while [ $# -gt 0 ]; do
   case $1 in
     --dir) DIR=$2; shift ;; --branch) BRANCH=$2; shift ;; --auth) AUTH=$2; shift ;; --network) NET=$2; shift ;;
     --no-start) START=0 ;; --force) FORCE=1 ;; --yes) YES=1 ;; --dry-run) DRY=1 ;;
-    -h|--help) sed -n '2,24p' "$0"; exit 0 ;;
-    *) echo "不认识的参数：$1" >&2; exit 2 ;;
+    -h|--help) sed -n '2,23p' "$0"; exit 0 ;;
+    *) echo "Unknown option: $1" >&2; exit 2 ;;
   esac; shift
 done
 
 say() { printf '\n== %s\n' "$*"; }
-die() { printf '错误：%s\n' "$*" >&2; exit 1; }
+die() { printf 'ERROR: %s\n' "$*" >&2; exit 1; }
 run() { if [ "$DRY" = 1 ]; then printf '[dry-run] %s\n' "$*"; else "$@"; fi; }
 
-# ---------- 1. 检测 ----------
-say "1/8 检测系统和硬件"
-[ -r /etc/os-release ] || die "没有 /etc/os-release，无法判断系统"
+# ---------- 1. Detect ----------
+say "1/8 Detecting OS and hardware"
+[ -r /etc/os-release ] || die "no /etc/os-release, cannot identify the OS"
 . /etc/os-release
-case "${ID:-}" in ubuntu|debian) ;; *) die "只支持 Debian / Ubuntu（当前：${PRETTY_NAME:-未知}）" ;; esac
+case "${ID:-}" in ubuntu|debian) ;; *) die "only Debian / Ubuntu are supported (found: ${PRETTY_NAME:-unknown})" ;; esac
 case "$(uname -m)" in
   x86_64|amd64) ARCH=amd64 ;;
   aarch64|arm64) ARCH=arm64 ;;
-  *) die "不支持的 CPU 架构：$(uname -m)（只支持 x86_64 / arm64）" ;;
+  *) die "unsupported CPU architecture: $(uname -m) (only x86_64 / arm64)" ;;
 esac
-MODEL=$( { [ -r /proc/device-tree/model ] && tr -d '\0' < /proc/device-tree/model; } 2>/dev/null || cat /sys/class/dmi/id/product_name 2>/dev/null || echo 未知)
+MODEL=$( { [ -r /proc/device-tree/model ] && tr -d '\0' < /proc/device-tree/model; } 2>/dev/null || cat /sys/class/dmi/id/product_name 2>/dev/null || echo unknown)
 MEM_MB=$(awk '/MemTotal/ {printf "%d", $2/1024}' /proc/meminfo)
-KIND=通用
-case "$MODEL" in *[Oo]range*|*RK35*|*Rockchip*) KIND="Orange Pi / RK3588 类板子" ;; esac
-echo "系统：${PRETTY_NAME}    架构：$ARCH    机型：$MODEL ($KIND)    内存：${MEM_MB} MB"
-[ "$MEM_MB" -ge 3500 ] || echo "警告：内存不足 4 GB，全栈可能起不来"
-[ "$DRY" = 1 ] || [ "$(id -u)" = 0 ] || die "请用 sudo 运行"
-if [ "$ARCH" = arm64 ] && [ "$KIND" = 通用 ]; then echo "提示：这是 arm64 但不是常见的 Orange Pi 板子，镜像检查通过才会启动"; fi
+KIND=generic
+case "$MODEL" in *[Oo]range*|*RK35*|*Rockchip*) KIND="Orange Pi / RK3588 class board" ;; esac
+echo "OS: ${PRETTY_NAME}    arch: $ARCH    model: $MODEL ($KIND)    memory: ${MEM_MB} MB"
+[ "$MEM_MB" -ge 3500 ] || echo "WARNING: less than 4 GB of memory, the full stack may not start"
+[ "$DRY" = 1 ] || [ "$(id -u)" = 0 ] || die "run with sudo"
+if [ "$ARCH" = arm64 ] && [ "$KIND" = generic ]; then echo "Note: arm64 but not a common Orange Pi board; services start only if the image check passes"; fi
 
 U=${SUDO_USER:-$(id -un)}
 HOME_U=$(getent passwd "$U" | cut -d: -f6); [ -n "$HOME_U" ] || HOME_U=$HOME
 [ -n "$DIR" ] || DIR=/opt/h2z.security
 have_tty() { (exec </dev/tty) 2>/dev/null; }
 as_user() { if [ "$(id -u)" = 0 ] && [ "$U" != root ]; then sudo -u "$U" -H "$@"; else "$@"; fi; }
-# docker 组刚加入、当前会话还没生效时用 sg 兜底
+# Use sg as a fallback when the docker group was just added and this session has not picked it up yet
 dk() { if as_user docker info >/dev/null 2>&1; then as_user sh -c "$1"; else as_user sg docker -c "$1"; fi; }
-echo "登录用户：$U    代码目录：$DIR    分支：$BRANCH"
+echo "login user: $U    code directory: $DIR    branch: $BRANCH"
 
-# 家目录（放 .ssh / .git-credentials）和代码目录：不存在就以 root 建好并交给登录用户
-# （有些机器的用户没有可写的家目录 / 上级目录，直接用该用户 git clone 会报 Permission denied）
+# Home directory (holds .ssh / .git-credentials) and code directory: create them as root and hand them to the
+# login user if missing (some machines have no writable home / parent directory for that user, and a plain
+# git clone as that user fails with Permission denied)
 UG=$(id -gn "$U" 2>/dev/null || echo "$U")
 if [ "$DRY" = 0 ] && [ "$(id -u)" = 0 ]; then
   [ -d "$HOME_U" ] || install -d -o "$U" -g "$UG" -m 755 "$HOME_U"
@@ -76,27 +77,27 @@ if [ "$DRY" = 0 ] && [ "$(id -u)" = 0 ]; then
   [ -d "$DIR/.git" ] || install -d -o "$U" -g "$UG" -m 755 "$DIR"
 fi
 
-# 磁盘：Docker 数据目录所在盘空闲（还没装 docker 就看 /var/lib/docker 所在盘）
+# Disk: free space on the disk holding Docker data (before Docker is installed, the disk of /var/lib/docker)
 DR=/var/lib/docker; command -v docker >/dev/null 2>&1 && DR=$(docker info -f '{{.DockerRootDir}}' 2>/dev/null || echo /var/lib/docker)
 CHK=$DR; [ -e "$CHK" ] || CHK=/var/lib
 FREE_GB=$(df -P -B1 "$CHK" | awk 'NR==2 {printf "%d", $4/1e9}')
-echo "Docker 数据盘空闲：${FREE_GB} GB（需要 ≥ 15 GB）"
-[ "$FREE_GB" -ge 15 ] || { [ "$FORCE" = 1 ] || die "磁盘空闲不足 15 GB；腾出空间，或加 --force 硬装"; }
+echo "Free space on the Docker data disk: ${FREE_GB} GB (need >= 15 GB)"
+[ "$FREE_GB" -ge 15 ] || { [ "$FORCE" = 1 ] || die "less than 15 GB free; free some space or use --force"; }
 if [ "$ARCH" = arm64 ]; then
   ROOTDEV=$(findmnt -n -o SOURCE / 2>/dev/null || true)
-  case "$ROOTDEV" in /dev/mmcblk*) echo "警告：根分区在 TF 卡（$ROOTDEV）。录像和数据库会很快把卡写坏，生产请用 SSD" ;; esac
+  case "$ROOTDEV" in /dev/mmcblk*) echo "WARNING: root filesystem is on an SD card ($ROOTDEV). Recordings and the database will wear it out quickly; use an SSD in production" ;; esac
 fi
 
-# ---------- 2. 基础工具 ----------
-say "2/8 安装基础工具"
+# ---------- 2. Base tools ----------
+say "2/8 Installing base tools"
 run apt-get update -y
 run apt-get install -y git ca-certificates curl jq python3 nodejs npm openssh-client
 
-# ---------- 3. 取代码 ----------
-say "3/8 取代码（$REPO_SLUG）"
+# ---------- 3. Fetch code ----------
+say "3/8 Fetching code ($REPO_SLUG)"
 [ -n "$AUTH" ] || { if [ -n "${GH_TOKEN:-}" ]; then AUTH=token; else AUTH=none; fi; }
 if [ -d "$DIR/.git" ]; then
-  echo "代码目录已存在，只更新：$DIR"
+  echo "Code directory already exists, updating only: $DIR"
   run as_user git -C "$DIR" fetch origin
   run as_user git -C "$DIR" switch "$BRANCH"
   run as_user git -C "$DIR" pull --ff-only origin "$BRANCH"
@@ -106,22 +107,22 @@ else
       run as_user git clone --branch "$BRANCH" "$REPO_URL" "$DIR" ;;
     token)
       if [ -z "${GH_TOKEN:-}" ] && [ "$DRY" = 0 ]; then
-        have_tty || die "没有终端可输入 token：请用 sudo GH_TOKEN=xxx sh ... 传入"
-        printf 'GitHub token（只读，输入不显示）：' >/dev/tty; stty -echo </dev/tty; read -r GH_TOKEN </dev/tty; stty echo </dev/tty; printf '\n' >/dev/tty
-        [ -n "$GH_TOKEN" ] || die "token 为空"
+        have_tty || die "no terminal to read a token from: pass it as sudo GH_TOKEN=xxx sh ..."
+        printf 'GitHub token (read-only, input hidden): ' >/dev/tty; stty -echo </dev/tty; read -r GH_TOKEN </dev/tty; stty echo </dev/tty; printf '\n' >/dev/tty
+        [ -n "$GH_TOKEN" ] || die "empty token"
       fi
-      if [ "$DRY" = 1 ]; then echo "[dry-run] git clone（token）并把 token 存进 $HOME_U/.git-credentials（600）"
+      if [ "$DRY" = 1 ]; then echo "[dry-run] git clone (token) and store the token in $HOME_U/.git-credentials (mode 600)"
       else
         CRED=$HOME_U/.git-credentials
         ( umask 077; touch "$CRED"; grep -v '@github.com' "$CRED" > "$CRED.tmp" 2>/dev/null || true
           printf 'https://x-access-token:%s@github.com\n' "$GH_TOKEN" >> "$CRED.tmp"; mv "$CRED.tmp" "$CRED" )
         chown "$U" "$CRED"; chmod 600 "$CRED"
         as_user git config --global credential.helper store
-        as_user git clone --branch "$BRANCH" "git@github-h2z-security:$REPO_SLUG.git" "$DIR"
+        as_user git clone --branch "$BRANCH" "$REPO_URL" "$DIR"
       fi ;;
     deploykey)
       KEY=$HOME_U/.ssh/h2z_security_deploy
-      if [ "$DRY" = 1 ]; then echo "[dry-run] 生成 $KEY，等你把公钥加到 GitHub Deploy keys，然后 git clone"
+      if [ "$DRY" = 1 ]; then echo "[dry-run] generate $KEY, wait for you to add the public key to GitHub Deploy keys, then git clone"
       else
         as_user mkdir -p "$HOME_U/.ssh"; as_user chmod 700 "$HOME_U/.ssh"
         [ -f "$KEY" ] || as_user ssh-keygen -t ed25519 -N '' -C "h2z-$(hostname)" -f "$KEY"
@@ -137,65 +138,67 @@ EOF"
           as_user chmod 600 "$HOME_U/.ssh/config"
         fi
         until as_user git ls-remote "git@github-h2z-security:$REPO_SLUG.git" HEAD >/dev/null 2>&1; do
-          echo; echo "把下面这一行公钥加到 https://github.com/$REPO_SLUG/settings/keys （Add deploy key，不要勾 Allow write access）："
+          echo; echo "Add this public key at https://github.com/$REPO_SLUG/settings/keys (Add deploy key, do NOT tick Allow write access):"
           echo; cat "$KEY.pub"; echo
-          have_tty || die "没有终端可等待：请先把上面的公钥加到 GitHub 后重跑，或改用 GH_TOKEN"
-          printf '添加完按回车继续（Ctrl-C 退出）…' >/dev/tty; read -r _ </dev/tty
+          have_tty || die "no terminal to wait on: add the key above to GitHub and re-run, or use GH_TOKEN instead"
+          printf 'Press Enter once it is added (Ctrl-C to quit)... ' >/dev/tty; read -r _ </dev/tty
         done
         as_user git clone --branch "$BRANCH" "git@github-h2z-security:$REPO_SLUG.git" "$DIR"
       fi ;;
-    *) die "--auth 只能是 token / deploykey / none" ;;
+    *) die "--auth must be none / token / deploykey" ;;
   esac
 fi
-[ "$DRY" = 1 ] || [ -f "$DIR/compose.yaml" ] || die "代码目录里没有 compose.yaml：$DIR"
+[ "$DRY" = 1 ] || [ -f "$DIR/compose.yaml" ] || die "no compose.yaml in the code directory: $DIR"
 
-# ---------- 4. 宿主层（Docker、看门狗等） ----------
-say "4/8 安装 Docker 和宿主层（host/setup-host.sh --network=$NET）"
+# ---------- 4. Host layer (Docker, watchdog, ...) ----------
+say "4/8 Installing Docker and the host layer (host/setup-host.sh --network=$NET)"
 run sh "$DIR/host/setup-host.sh" "--network=$NET"
-[ "$DRY" = 1 ] || command -v docker >/dev/null 2>&1 || die "Docker 没装上，看上面 setup-host 的输出"
+[ "$DRY" = 1 ] || command -v docker >/dev/null 2>&1 || die "Docker was not installed, see the setup-host output above"
 [ "$DRY" = 1 ] || [ "$U" = root ] || id -nG "$U" | tr ' ' '\n' | grep -qx docker || run usermod -aG docker "$U"
 
-# ---------- 5. 初始化配置 ----------
-say "5/8 生成 .env 和密钥（scripts/init.sh）"
+# ---------- 5. Initialize config ----------
+say "5/8 Generating .env and secrets (scripts/init.sh)"
 if [ "$DRY" = 1 ]; then echo "[dry-run] sh scripts/init.sh"; else dk "cd '$DIR' && sh scripts/init.sh"; fi
 if [ "$DRY" = 0 ]; then
-  # 隔离检查：自家镜像必须都是 GHCR
-  BAD=$(grep -E '^[A-Z_]+_IMAGE=' "$DIR/.env" | grep -E 'h2z|riser' | grep -v '=ghcr.io/h2ztech/' || true)
-  [ -z "$BAD" ] || die ".env 里有非 GHCR 的自家镜像，删掉 $DIR/.env 重跑：
+  # Isolation check: no image may come from a registry other than GHCR / Docker Hub.
+  # An image reference whose first path segment looks like a host name (contains a dot) is a foreign registry;
+  # local build tags such as h2z-security/yolo:0.1.0 and Docker Hub names such as emqx/emqx are fine.
+  BAD=$(grep -E '^[A-Z_]+_IMAGE=' "$DIR/.env" | grep -E '=[A-Za-z0-9-]+(\.[A-Za-z0-9-]+)+(:[0-9]+)?/' | grep -v '=ghcr.io/h2ztech/' || true)
+  [ -z "$BAD" ] || die "found image(s) from a registry other than GHCR in .env; delete $DIR/.env and re-run:
 $BAD"
 fi
 
-# ---------- 6. 镜像检查（arm64） ----------
-say "6/8 镜像检查"
+# ---------- 6. Image check (arm64) ----------
+say "6/8 Image check"
 if [ "$ARCH" = arm64 ]; then
   if [ "$DRY" = 1 ]; then echo "[dry-run] node scripts/check-images.mjs arm64"
   elif ! dk "cd '$DIR' && node scripts/check-images.mjs arm64"; then
-    [ "$FORCE" = 1 ] || die "有镜像没有 arm64 版本（见上面的 FAIL）。先在对应仓库的 Actions 触发 arm64 构建；确认要硬装加 --force"
+    [ "$FORCE" = 1 ] || die "some images have no arm64 build (see FAIL above). Trigger an arm64 build in the relevant repo's Actions first; use --force to install anyway"
   fi
-else echo "x86：跳过 arm64 检查"; fi
+else echo "x86: skipping the arm64 check"; fi
 
-# ---------- 7. 启动 ----------
+# ---------- 7. Start ----------
 if [ "$START" = 0 ]; then
-  say "7/8 已按 --no-start 停在这里"; echo "之后启动：cd $DIR && docker compose pull && docker compose up -d --wait --wait-timeout 180"; exit 0
+  say "7/8 Stopping here because of --no-start"; echo "To start later: cd $DIR && docker compose pull && docker compose up -d --wait --wait-timeout 180"; exit 0
 fi
-say "7/8 拉镜像并启动（第一次要下载几个 GB，几分钟到几十分钟）"
+say "7/8 Pulling images and starting (the first pull downloads several GB: minutes to tens of minutes)"
 if [ "$DRY" = 1 ]; then echo "[dry-run] docker compose config / pull / up -d --wait"; else
   dk "cd '$DIR' && docker compose config --quiet && docker compose pull && docker compose up -d --wait --wait-timeout 180"
 fi
 
-# ---------- 8. 建默认项目 + 冒烟 ----------
-say "8/8 建默认项目并冒烟"
+# ---------- 8. Seed the default project + smoke test ----------
+say "8/8 Seeding the default project and running the smoke test"
 if [ "$DRY" = 1 ]; then echo "[dry-run] node scripts/seed-project.mjs && node scripts/smoke.mjs"; else
-  dk "cd '$DIR' && node scripts/seed-project.mjs" || echo "seed-project 失败（可稍后手动重跑）"
-  dk "cd '$DIR' && node scripts/smoke.mjs" || echo "smoke 有失败项，见上面输出"
+  dk "cd '$DIR' && node scripts/seed-project.mjs" || echo "seed-project failed (you can re-run it later)"
+  dk "cd '$DIR' && node scripts/smoke.mjs" || echo "the smoke test has failures, see the output above"
 fi
 
 IP=$(hostname -I 2>/dev/null | awk '{print $1}')
 cat <<EOF
 
-完成。
-  大屏：   http://${IP:-<本机IP>}:8096/ioc   （默认只绑本机；让局域网访问：编辑 $DIR/.env 把 HTTP_BIND 改成 0.0.0.0，再 docker compose up -d）
-  后台：   /ioc/admin    默认账号 admin / h2z2026   —— 交付前必须修改
-  以后更新：cd $DIR && sh scripts/update.sh
-  详细验收清单：$DIR/docs/DEPLOY-B-LINE.md 第 4 节
+Done.
+  Dashboard: http://${IP:-<this machine's IP>}:8096/ioc   (bound to localhost by default; to open it to the LAN set HTTP_BIND=0.0.0.0 in $DIR/.env, then docker compose up -d)
+  Admin:     /ioc/admin    default account admin / h2z2026   -- change it before handing over
+  Update:    cd $DIR && sh scripts/update.sh
+  Acceptance checklist: $DIR/docs/DEPLOY-B-LINE.md, section 4
 EOF
