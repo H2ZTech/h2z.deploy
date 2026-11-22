@@ -10,7 +10,7 @@
 #   或 --auth deploykey（生成只读 SSH key，等你加到 GitHub Deploy keys）。
 #
 # 选项：
-#   --dir PATH      代码目录（默认 <登录用户家目录>/h2z.security）
+#   --dir PATH      代码目录（默认 /opt/h2z.security，和 H2Z OS 安装盘一致，属主是登录用户）
 #   --branch NAME   分支（默认 main）
 #   --auth MODE     none | token | deploykey（默认：设了 GH_TOKEN 用 token，否则 none）
 #   --network MODE  传给 host/setup-host.sh 的 --network（默认 skip：远程装机不碰网口，装好后再手动处理）
@@ -60,12 +60,21 @@ if [ "$ARCH" = arm64 ] && [ "$KIND" = 通用 ]; then echo "提示：这是 arm64
 
 U=${SUDO_USER:-$(id -un)}
 HOME_U=$(getent passwd "$U" | cut -d: -f6); [ -n "$HOME_U" ] || HOME_U=$HOME
-[ -n "$DIR" ] || DIR=$HOME_U/h2z.security
+[ -n "$DIR" ] || DIR=/opt/h2z.security
 have_tty() { (exec </dev/tty) 2>/dev/null; }
 as_user() { if [ "$(id -u)" = 0 ] && [ "$U" != root ]; then sudo -u "$U" -H "$@"; else "$@"; fi; }
 # docker 组刚加入、当前会话还没生效时用 sg 兜底
 dk() { if as_user docker info >/dev/null 2>&1; then as_user sh -c "$1"; else as_user sg docker -c "$1"; fi; }
 echo "登录用户：$U    代码目录：$DIR    分支：$BRANCH"
+
+# 家目录（放 .ssh / .git-credentials）和代码目录：不存在就以 root 建好并交给登录用户
+# （有些机器的用户没有可写的家目录 / 上级目录，直接用该用户 git clone 会报 Permission denied）
+UG=$(id -gn "$U" 2>/dev/null || echo "$U")
+if [ "$DRY" = 0 ] && [ "$(id -u)" = 0 ]; then
+  [ -d "$HOME_U" ] || install -d -o "$U" -g "$UG" -m 755 "$HOME_U"
+  [ -d "$(dirname "$DIR")" ] || install -d -m 755 "$(dirname "$DIR")"
+  [ -d "$DIR/.git" ] || install -d -o "$U" -g "$UG" -m 755 "$DIR"
+fi
 
 # 磁盘：Docker 数据目录所在盘空闲（还没装 docker 就看 /var/lib/docker 所在盘）
 DR=/var/lib/docker; command -v docker >/dev/null 2>&1 && DR=$(docker info -f '{{.DockerRootDir}}' 2>/dev/null || echo /var/lib/docker)

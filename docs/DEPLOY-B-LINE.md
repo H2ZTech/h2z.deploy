@@ -93,8 +93,8 @@ sudo apt-get update
 sudo apt-get install -y git ca-certificates curl jq python3 nodejs npm
 
 # 2) 取代码（仓库公开与否按你们的设置；私有时用只读 Deploy key，见 ORANGE-PI.md §2）
-git clone git@github.com:H2ZTech/h2z.security.git ~/h2z.security
-cd ~/h2z.security && git switch main
+git clone git@github.com:H2ZTech/h2z.security.git /opt/h2z.security
+cd /opt/h2z.security && git switch main
 
 # 3) 装 Docker（Debian/Ubuntu 官方源）；装完退出 SSH 重新登录使 docker 组生效
 sudo sh scripts/install-docker.sh
@@ -133,7 +133,7 @@ node scripts/smoke.mjs          # 冒烟；--full 为完整验收
 ## 5. 以后更新
 
 ```bash
-cd ~/h2z.security      # 安装盘设备是 /opt/h2z.security
+cd /opt/h2z.security
 sh scripts/update.sh   # 查空间 → 拉代码 → 拉镜像 → 启动 → 清旧镜像（留上一版）
 sh scripts/update.sh --check        # 只查空间
 sh scripts/update.sh --prune-old    # 空间不够时先清旧镜像
