@@ -1897,8 +1897,15 @@ export function createAgent(opts = {}) {
     if (gitOp) return st;
     // 重启后留在 checking / downloading 的状态不可信：没有任务在跑就退回
     if (st.state === 'checking' || st.state === 'downloading') return { ...st, state: st.latest ? 'available' : 'idle', progress: null };
-    if ((st.state === 'ready' || st.state === 'available') && st.latest && !hostBusy(await readJson(U.state))) {
-      // 已经追平（升级完成 / 有人手动 git pull 过）：作废，回到「可以检查」
+    if (st.state === 'ready' && st.latest && !hostBusy(await readJson(U.state))) {
+      // fetch 已经把代码合并进来，所以 HEAD 一定追平了上游：不能再用 behind===0 判断。
+      // 只有 HEAD 离开了「下载好时的提交」（升级完成 / 有人手动 pull 或回退过）才作废。
+      const head = (await gitCurrent(repo, true)).commit;
+      if (st.readyHead && head && head !== st.readyHead) return await saveGit({ state: 'idle', latest: null, progress: null, error: null, readyHead: null });
+      return st;
+    }
+    if (st.state === 'available' && st.latest && !hostBusy(await readJson(U.state))) {
+      // 已经追平（有人手动 git pull 过）：作废，回到「可以检查」
       const behind = Number((await asOwner(repo, 'cd "$1" && git rev-list --count "HEAD..@{u}"', { timeout: 15_000 }).catch(() => '1')).trim());
       if (behind === 0) return await saveGit({ state: 'idle', latest: null, progress: null, error: null });
     }
@@ -1948,7 +1955,8 @@ export function createAgent(opts = {}) {
         // 低优先级拉镜像：录像在跑，不能被下载抢磁盘和 CPU
         await asOwnerChild(repo, 'cd "$1" && if command -v ionice >/dev/null 2>&1; then ionice -c3 nice -n 19 docker compose pull --ignore-pull-failures --quiet; else docker compose pull --ignore-pull-failures --quiet; fi', 60 * 60_000);
         gitCur = { at: 0, val: null };
-        await saveGit({ state: 'ready', progress: null });
+        const readyHead = (await gitCurrent(repo, true)).commit; // remember what "downloaded" means: HEAD after the merge
+        await saveGit({ state: 'ready', progress: null, readyHead });
       } catch (e) {
         if (gitCancel) await saveGit({ state: 'available', progress: null, error: null });
         else {

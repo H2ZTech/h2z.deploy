@@ -1371,6 +1371,26 @@ test('旁挂更新：升级 = 先写「备份数据库」状态，再 systemd-ru
   await assert.rejects(b.agent.onlineCheck({}), /稍后再检查|正在升级/, '升级中不能再检查');
 });
 
+test('旁挂更新：下载好（fetch 已把代码合并，HEAD 追平上游）之后仍是「已下载」，能开始升级；HEAD 被改动才作废', async () => {
+  const b = gitBox();
+  await b.agent.onlineCheck({});
+  // fetch 里的 git merge --ff-only 会让 HEAD 追平上游（模拟）
+  b.world.behind = 0; b.world.head = 'bbb2222';
+  await b.agent.onlineFetch({});
+  await waitFor(async () => (await b.agent.onlineStatus()).state === 'ready');
+  assert.equal((await b.agent.onlineStatus()).state, 'ready', '追平不等于作废');
+  assert.deepEqual(await b.agent.upgradeStart({ source: 'online' }), { started: true, source: 'git' });
+});
+
+test('旁挂更新：已下载后有人手动换了 HEAD → 作废', async () => {
+  const b = gitBox();
+  await b.agent.onlineCheck({});
+  await b.agent.onlineFetch({});
+  await waitFor(async () => (await b.agent.onlineStatus()).state === 'ready');
+  b.world.head = 'ccc3333';
+  assert.equal((await b.agent.onlineStatus()).state, 'idle');
+});
+
 test('旁挂更新：升级完成后「已下载」作废（追平了）；页面不能回退（给出手动办法）；重启 host-agent 不把进行中的更新标成中断', async () => {
   const b = gitBox();
   await b.agent.onlineCheck({});
