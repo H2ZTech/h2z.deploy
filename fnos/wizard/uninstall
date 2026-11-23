@@ -1,0 +1,17 @@
+[
+  {
+    "stepTitle": "Uninstall H2Z Riser / 卸载 H2Z Riser",
+    "items": [
+      {
+        "type": "tips",
+        "helpText": "By default the containers, watchdog and tunnel are removed, and your database, settings and recordings are KEPT, so a reinstall picks up where it left off. 默认只移除容器、看门狗和隧道,数据库、设置和录像会保留,重装后可继续使用。"
+      },
+      {
+        "type": "switch",
+        "field": "delete_data",
+        "label": "Also delete ALL data (database, settings, recordings volume) / 同时删除所有数据(数据库、设置、录像卷)",
+        "initValue": "false"
+      }
+    ]
+  }
+]

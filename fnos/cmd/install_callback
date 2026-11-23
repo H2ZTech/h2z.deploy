@@ -1,0 +1,4 @@
+#!/bin/sh
+# Start right away (the app has no start button, ctl_stop=false). Idempotent.
+"$(dirname "$0")/main" start >/dev/null 2>&1
+exit 0

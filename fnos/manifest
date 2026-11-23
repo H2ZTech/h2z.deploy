@@ -1,0 +1,13 @@
+appname=com.h2ztech.security
+version=0.2.2
+display_name=H2Z Riser
+desc=<p><b>H2Z 网络录像机 / H2Z NVR</b> 支持 3D 空间搜录像，使用本机的网络和硬盘。</p><p>三个入口 / Entrances：<br>1. 安装进度和日志 / Install progress: <a href="http://127.0.0.1:18099/" target="_blank">http://127.0.0.1:18099/</a><br>2. 监控主界面 / Web UI: <a href="http://127.0.0.1:8096/ioc/" target="_blank">http://127.0.0.1:8096/ioc/</a><br>3. 管理后台 / Admin: <a href="http://127.0.0.1:8096/ioc/admin" target="_blank">http://127.0.0.1:8096/ioc/admin</a></p><p>其他电脑访问时，把 127.0.0.1 换成飞牛的 IP。From other computers use the NAS IP.</p>
+platform=x86
+source=thirdparty
+maintainer=H2ZTech
+distributor=H2ZTech
+service_port=18099
+desktop_uidir=ui
+desktop_applaunchname=com.h2ztech.security.main
+ctl_stop=false
+changelog=0.2.2 clickable entrances, LAN binding fix, success page, uninstall script kept for the callback, brand icons

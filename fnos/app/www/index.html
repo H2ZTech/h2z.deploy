@@ -1,0 +1,112 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>H2Z Riser</title>
+<style>
+  :root { color-scheme: dark; }
+  body { margin:0; background:#0b1b2b; color:#dbeaf7; font:15px/1.5 system-ui,-apple-system,"Segoe UI",sans-serif; }
+  main { max-width:760px; margin:6vh auto; padding:0 20px; }
+  header { display:flex; align-items:center; gap:14px; margin-bottom:22px; }
+  header img { width:56px; height:56px; border-radius:12px; }
+  h1 { font-size:24px; margin:0; font-weight:600; }
+  .badge { display:inline-block; padding:4px 12px; border-radius:999px; font-weight:600; background:#24415c; }
+  .badge.ok { background:#1d6b3a; } .badge.bad { background:#8a2c2c; } .badge.work { background:#245a8a; }
+  .bar { height:8px; background:#17324a; border-radius:6px; overflow:hidden; margin:16px 0 8px; }
+  .bar > i { display:block; height:100%; width:0; background:#4aa3ff; transition:width .6s; }
+  .stage { color:#9fc3e3; min-height:1.5em; }
+  .msg { margin:14px 0; padding:12px 14px; border-radius:8px; background:#2a1d1d; border:1px solid #6a2c2c; display:none; white-space:pre-wrap; }
+  pre { background:#06121d; border:1px solid #17324a; border-radius:8px; padding:12px; max-height:340px; overflow:auto; font-size:12px; white-space:pre-wrap; word-break:break-all; }
+  .entries { display:none; margin:14px 0; padding:12px 14px; border-radius:8px; background:#10283d; border:1px solid #1d6b3a; line-height:1.9; }
+  .cd { display:none; margin:8px 0 12px; color:#9fc3e3; } .cd a { margin-left:8px; }
+  a { color:#7cc0ff; } footer { margin-top:14px; color:#6f93b3; font-size:13px; }
+</style>
+</head>
+<body>
+<main>
+  <header><img src="logo.png" alt=""><div><h1>H2Z Riser</h1><span id="badge" class="badge">Checking… / 检查中…</span></div></header>
+  <div class="bar"><i id="bar"></i></div>
+  <div id="stage" class="stage"></div>
+  <div id="msg" class="msg"></div>
+  <div id="entries" class="entries">
+    <b>Entrances / 三个入口</b><br>
+    1. Install progress &amp; log / 安装进度和日志: <a id="e1" href="#"></a><br>
+    2. Web UI / 监控主界面: <a id="e2" href="#"></a><br>
+    3. Admin / 管理后台: <a id="e3" href="#"></a>
+  </div>
+  <div id="cd" class="cd"><span></span><a href="#" id="stay">Stay here / 留在此页</a></div>
+  <pre id="log">(no log yet / 暂无日志)</pre>
+  <footer>
+    <a id="open" href="#">Open H2Z Riser / 打开</a> ·
+    <a href="install.log" target="_blank">Full log / 完整日志</a> ·
+    <span id="ts"></span>
+  </footer>
+</main>
+<script>
+const APP = 'http://' + location.hostname + ':8096/ioc/';
+document.getElementById('open').href = APP;
+const B = 'http://' + location.hostname;
+[['e1', B + ':18099/'], ['e2', APP], ['e3', B + ':8096/ioc/admin']].forEach(([id, u]) => { const a = document.getElementById(id); a.href = u; a.textContent = u; });
+document.getElementById('stay').onclick = (e) => { e.preventDefault(); stay = true; if (countdown) clearInterval(countdown); document.getElementById('cd').style.display = 'none'; };
+const $ = (id) => document.getElementById(id);
+
+function probe() {
+  return new Promise((resolve) => {
+    const c = new AbortController(); const t = setTimeout(() => c.abort(), 2500);
+    fetch(APP, { mode: 'no-cors', signal: c.signal }).then(() => { clearTimeout(t); resolve(true); }, () => { clearTimeout(t); resolve(false); });
+  });
+}
+async function getJson(u) { try { return await (await fetch(u + '?t=' + Date.now(), { cache: 'no-store' })).json(); } catch (e) { return {}; } }
+async function getText(u) { try { const r = await fetch(u + '?t=' + Date.now(), { cache: 'no-store' }); return r.ok ? await r.text() : ''; } catch (e) { return ''; } }
+function badge(text, cls) { const b = $('badge'); b.textContent = text; b.className = 'badge ' + (cls || ''); }
+
+let started = Date.now();
+let countdown = null; let stay = /[?&]stay\b/.test(location.search);
+async function tick() {
+  const st = await getJson('status.json');
+  const up = await probe();
+  const state = st.state || 'idle';
+  // The stack answers and nothing is installing: go straight to the product
+  if (up && (state === 'ready' || state === 'idle' || state === 'starting')) {
+    badge('Installed OK / 安装成功', 'ok'); $('bar').style.width = '100%'; $('msg').style.display = 'none';
+    $('stage').textContent = 'H2Z Riser is running. / H2Z Riser 已在运行。';
+    $('entries').style.display = 'block';
+    const log0 = await getText('tail.txt'); if (log0) $('log').textContent = log0;
+    $('ts').textContent = st.ts ? ('Last update: ' + st.ts) : '';
+    if (!stay && !countdown) {
+      let n = 6; const cd = $('cd'); cd.style.display = 'block';
+      const upd = () => { cd.firstChild.textContent = 'Opening the web UI in ' + n + 's / ' + n + ' 秒后自动打开监控主界面 '; };
+      upd();
+      countdown = setInterval(() => { n--; if (n <= 0) { clearInterval(countdown); location.replace(APP); } else upd(); }, 1000);
+    }
+    setTimeout(tick, 5000); return;
+  }
+
+  const m = /^==\s*(\d+)\/(\d+)\s*(.*)$/.exec(st.stage || '');
+  if (state === 'installing') {
+    badge('Installing / 安装中…', 'work');
+    $('stage').textContent = st.stage || 'Starting… / 启动中…';
+    $('bar').style.width = (m ? Math.max(4, Math.round(100 * (+m[1]) / (+m[2]))) : 4) + '%';
+    $('msg').style.display = 'none';
+  } else if (state === 'starting') {
+    badge('Starting / 启动中…', 'work'); $('stage').textContent = st.stage || ''; $('bar').style.width = '92%'; $('msg').style.display = 'none';
+  } else if (state === 'ready') {
+    badge('Installed but not responding / 已安装但无响应', 'bad'); $('bar').style.width = '100%';
+    $('stage').textContent = 'Port 8096 does not answer. The stack may still be starting, or a container stopped. / 8096 端口无响应。';
+  } else if (state === 'failed') {
+    badge('FAILED / 失败', 'bad'); $('bar').style.width = '100%'; $('stage').textContent = st.stage || '';
+    $('msg').style.display = 'block';
+    $('msg').textContent = (st.detail || 'Install failed.') + '\n\nTo retry: stop and start the app in the fnOS App Center, or reinstall it. / 重试:在应用中心重新启动或重装本应用。';
+  } else {
+    badge('Idle / 空闲', ''); $('stage').textContent = 'Nothing is running. Open the app again from the desktop, or restart it in the App Center. / 当前没有任务。';
+  }
+  const log = await getText('tail.txt');
+  if (log) { const el = $('log'); const atEnd = el.scrollTop + el.clientHeight >= el.scrollHeight - 30; el.textContent = log; if (atEnd) el.scrollTop = el.scrollHeight; }
+  $('ts').textContent = st.ts ? ('Last update: ' + st.ts) : '';
+  setTimeout(tick, 3000);
+}
+tick();
+</script>
+</body>
+</html>

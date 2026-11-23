@@ -1,0 +1,23 @@
+#!/bin/sh
+# Uninstall: stop the progress page, then run uninstall.sh. Data is deleted only when the wizard switch was on.
+# A failed cleanup must not leave the app stuck in the App Center, so this always exits 0; the result is in the log.
+APP=com.h2ztech.security
+DIR=/opt/h2z.security
+LOGF=/var/log/h2z-uninstall.log
+TARGET=${TRIM_APPDEST:-/var/apps/$APP/target}
+"$(dirname "$0")/main" stop >/dev/null 2>&1
+
+SCRIPT=/tmp/h2z-uninstall.sh
+[ -f "$SCRIPT" ] || SCRIPT=$TARGET/uninstall.sh
+[ -f "$SCRIPT" ] || SCRIPT=$DIR/uninstall.sh
+if [ ! -f "$SCRIPT" ]; then
+  SCRIPT=/tmp/h2z-uninstall.sh
+  curl -fsSL -m 60 -o "$SCRIPT" https://raw.githubusercontent.com/H2ZTech/h2z.deploy/main/uninstall.sh >>"$LOGF" 2>&1
+fi
+ARGS="--dir $DIR --yes"
+# The field name may arrive with or without an extra wizard_ prefix: accept both
+DEL=${wizard_delete_data:-${wizard_wizard_delete_data:-false}}
+{ echo "=== $(date -u +%FT%TZ) uninstall_callback env:"; env | grep -i wizard; echo "delete_data resolved to: $DEL"; } >>"$LOGF" 2>&1
+case "$DEL" in true|TRUE|True|1|on|ON|yes|YES) ARGS="$ARGS --purge" ;; esac
+{ echo "=== $(date -u +%FT%TZ) uninstall: sh $SCRIPT $ARGS"; sh "$SCRIPT" $ARGS; echo "=== exit code $?"; } >>"$LOGF" 2>&1
+exit 0

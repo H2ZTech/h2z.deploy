@@ -1,0 +1,34 @@
+#!/bin/sh
+# Preflight: refuse to install (with a readable dialog) when the machine cannot run the stack.
+OUT=${TRIM_TEMP_LOGFILE:-/tmp/h2z-preflight.txt}
+ERR=""
+add() { ERR="$ERR
+- $1"; }
+
+[ "$(id -u)" = 0 ] || add "This package is not running as root. H2Z needs root (host network, disks). / 安装包没有以 root 运行。"
+if ! { command -v docker >/dev/null 2>&1 && docker compose version >/dev/null 2>&1; }; then
+  add "Docker (with the compose plugin) is not installed. Install Docker from the App Center first. / 请先在应用中心安装 Docker。"
+fi
+if ! command -v python3 >/dev/null 2>&1; then
+  DEBIAN_FRONTEND=noninteractive apt-get install -y -qq python3-minimal >/dev/null 2>&1 || true
+  command -v python3 >/dev/null 2>&1 || add "python3 is missing and could not be installed (needed for the progress page). / 缺少 python3 且自动安装失败。"
+fi
+if command -v docker >/dev/null 2>&1; then
+  DR=$(docker info -f '{{.DockerRootDir}}' 2>/dev/null || echo /var/lib/docker); [ -e "$DR" ] || DR=/var/lib
+  FREE=$(df -P -B1 "$DR" 2>/dev/null | awk 'NR==2 {printf "%d", $4/1e9}')
+  [ "${FREE:-0}" -ge 15 ] || add "Less than 15 GB free on the Docker data disk (${FREE:-0} GB at $DR). / Docker 数据盘剩余空间不足 15 GB。"
+fi
+busy() { ss -ltnH "sport = :$1" 2>/dev/null | grep -q .; }
+if busy 8097; then add "Port 8097 is already in use (the product web screen needs it). / 端口 8097 已被占用。"; fi
+if busy 18099; then add "Port 18099 is already in use (needed by the install progress page; the product itself uses 8096 and 8097). / 端口 18099 已被占用。"; fi
+if busy 8096 && [ ! -f /opt/h2z.security/compose.yaml ]; then add "Port 8096 is already in use by another program (H2Z web UI needs it). / 端口 8096 已被占用。"; fi
+for u in https://raw.githubusercontent.com https://ghcr.io/v2/; do
+  code=$(curl -s -o /dev/null -m 10 -w '%{http_code}' "$u" 2>/dev/null || echo 000)
+  [ "$code" != 000 ] || add "Cannot reach $u. The install downloads from GitHub and GHCR. / 无法访问 $u,请检查网络。"
+done
+
+if [ -n "$ERR" ]; then
+  printf 'H2Z Riser cannot be installed yet:%s\n' "$ERR" > "$OUT"
+  exit 1
+fi
+exit 0

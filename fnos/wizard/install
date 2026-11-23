@@ -1,0 +1,11 @@
+[
+  {
+    "stepTitle": "Install H2Z Riser / 安装 H2Z Riser",
+    "items": [
+      {
+        "type": "tips",
+        "helpText": "H2Z Riser is a network video recorder. It uses this machine's network and disks, and downloads about 3 GB of images on first install (10-30 min).\n\nAfter you click Next, the package registers in a few seconds, but the real installation keeps running in the background.\n\nTo watch progress and see whether it succeeded: wait for the install to finish in App Center, then click the H2Z Riser icon on the desktop (or open http://127.0.0.1:18099/). The page shows the live log and opens the web UI automatically at http://127.0.0.1:8096/ioc/ when ready.\n\nH2Z Riser 是网络录像产品，会使用本机的网络和硬盘。首次安装需下载约 3 GB 镜像（约 10-30 分钟）。\n\n点“下一步”后，包会在几秒内注册完成，真正的安装在后台继续运行。\n\n查看进度、确认是否成功：应用中心安装结束后，点桌面上的 H2Z Riser 图标（或浏览器打开 http://127.0.0.1:18099/）。页面会显示实时日志，完成后自动跳转到 http://127.0.0.1:8096/ioc/。"
+      }
+    ]
+  }
+]

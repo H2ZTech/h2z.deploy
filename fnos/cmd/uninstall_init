@@ -1,0 +1,8 @@
+#!/bin/sh
+# Runs BEFORE the package files are removed: keep a copy of uninstall.sh where uninstall_callback can still find it.
+APP=com.h2ztech.security
+TARGET=${TRIM_APPDEST:-/var/apps/$APP/target}
+for f in "$TARGET/uninstall.sh" "/opt/h2z.security/uninstall.sh"; do
+  [ -f "$f" ] && { cp "$f" /tmp/h2z-uninstall.sh 2>/dev/null; break; }
+done
+exit 0

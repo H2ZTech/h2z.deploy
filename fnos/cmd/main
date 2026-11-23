@@ -1,0 +1,124 @@
+#!/bin/sh
+# H2Z Riser launcher for fnOS (fpk). Thin wrapper around the B-line install.sh and the docker compose stack in $DIR.
+# Needs root (config/privilege run-as=root).
+#   start  : serve the progress page on :18099; first run -> install in the background; later runs -> docker compose up -d
+#   stop   : only stops the progress page. It never stops the NVR stack (an NVR must not stop recording because of a button)
+#   status : 0 = stack running or install in progress, 3 = not running
+# Internal: _install, _up (background jobs), web (progress page only, for tests).
+APP=com.h2ztech.security
+DIR=${H2Z_DIR:-/opt/h2z.security}
+VAR=${TRIM_PKGVAR:-/var/apps/$APP/var}
+TARGET=${TRIM_APPDEST:-$(cd "$(dirname "$0")/.." 2>/dev/null && pwd)/target}
+WEB=$VAR/web
+LOG=$WEB/install.log
+TAIL=$WEB/tail.txt
+STATE=$WEB/status.json
+PIDF=$VAR/install.pid
+WEBPID=$VAR/web.pid
+WEB_PORT=${H2Z_WEB_PORT:-18099}
+APP_PORT=8096
+REPO_RAW=${H2Z_REPO_RAW:-https://raw.githubusercontent.com/H2ZTech/h2z.deploy/main}
+
+mkdir -p "$WEB"
+
+jesc() { printf '%s' "$1" | tr -d '\000-\037' | sed 's/\\/\\\\/g; s/"/\\"/g'; }
+# set_state <state> <stage> <detail>; state = installing | starting | ready | failed
+set_state() {
+  printf '{"state":"%s","stage":"%s","detail":"%s","ts":"%s"}\n' "$1" "$(jesc "$2")" "$(jesc "$3")" "$(date -u +%Y-%m-%dT%H:%M:%SZ)" > "$STATE.tmp" && mv "$STATE.tmp" "$STATE"
+}
+alive() { [ -f "$1" ] && kill -0 "$(cat "$1")" 2>/dev/null; }
+installing() { alive "$PIDF"; }
+app_up() { curl -fsS -o /dev/null --max-time 3 "http://127.0.0.1:$APP_PORT/ioc/" 2>/dev/null; }
+lan_ip() { hostname -I 2>/dev/null | awk '{print $1}'; }
+
+# Open the web UI to the LAN (install.sh binds to 127.0.0.1 by default); only when the user has not chosen a value
+open_lan() {
+  [ -f "$DIR/.env" ] || return 0
+  # .env is created from .env.example, which already has HTTP_BIND=127.0.0.1: replace the default, append when absent
+  if grep -q '^HTTP_BIND=' "$DIR/.env"; then
+    sed -i -E 's/^HTTP_BIND=(127\.0\.0\.1)?[[:space:]]*$/HTTP_BIND=0.0.0.0/' "$DIR/.env"
+  else
+    echo 'HTTP_BIND=0.0.0.0' >> "$DIR/.env"
+  fi
+  # keep a copy of uninstall.sh next to the stack: the package dir is already gone when uninstall_callback runs
+  [ -f "$TARGET/uninstall.sh" ] && cp "$TARGET/uninstall.sh" "$DIR/uninstall.sh" 2>/dev/null
+  return 0
+}
+
+ensure_web() {
+  cp "$TARGET/www/index.html" "$WEB/index.html" 2>/dev/null || cp "$(dirname "$0")/../app/www/index.html" "$WEB/index.html" 2>/dev/null || true
+  cp "$TARGET/www/logo.png" "$WEB/logo.png" 2>/dev/null || true
+  [ -f "$STATE" ] || set_state idle "" ""
+  alive "$WEBPID" && return 0
+  command -v python3 >/dev/null 2>&1 || { echo "python3 not found, progress page disabled" >> "$LOG"; return 0; }
+  nohup python3 -m http.server "$WEB_PORT" --bind 0.0.0.0 --directory "$WEB" >/dev/null 2>&1 &
+  echo $! > "$WEBPID"
+}
+
+fail() { # <message>
+  set_state failed "failed" "$1"
+  tail -n 60 "$LOG" > "$TAIL" 2>/dev/null || true
+}
+
+# Wait until the web UI answers (up to ~3 min), then publish the result
+wait_ready() {
+  i=0
+  while [ $i -lt 60 ]; do
+    if app_up; then set_state ready "ready" "http://$(lan_ip):$APP_PORT/ioc/"; tail -n 60 "$LOG" > "$TAIL"; return 0; fi
+    set_state starting "waiting for the web UI on port $APP_PORT" ""
+    i=$((i+1)); sleep 3
+  done
+  { echo "== web UI did not answer on port $APP_PORT within 3 minutes. Containers:"; docker ps -a --format '{{.Names}}\t{{.Status}}' 2>&1 | head -40; } >> "$LOG"
+  fail "The containers started but the web UI did not answer on port $APP_PORT within 3 minutes. See the log below."
+  return 1
+}
+
+case "$1" in
+  _install)   # background job: first install
+    echo $$ > "$PIDF"
+    : > "$LOG"
+    set_state installing "== 0/8 Downloading install.sh" ""
+    if ! curl -fsSL --retry 3 --max-time 120 -o "$WEB/install.sh" "$REPO_RAW/install.sh" >>"$LOG" 2>&1; then
+      fail "Could not download install.sh from GitHub. Check that this machine can reach raw.githubusercontent.com."; rm -f "$PIDF"; exit 1
+    fi
+    sh "$WEB/install.sh" --dir "$DIR" >>"$LOG" 2>&1 &
+    ipid=$!
+    while kill -0 "$ipid" 2>/dev/null; do
+      set_state installing "$(grep '^== ' "$LOG" | tail -n 1)" ""
+      tail -n 60 "$LOG" > "$TAIL" 2>/dev/null
+      sleep 3
+    done
+    wait "$ipid"; rc=$?
+    if [ "$rc" -ne 0 ]; then
+      fail "install.sh failed (exit code $rc): $(grep -E '^ERROR|FAIL' "$LOG" | tail -n 1)"; rm -f "$PIDF"; exit 1
+    fi
+    open_lan
+    ( cd "$DIR" && docker compose up -d ) >>"$LOG" 2>&1 || { fail "docker compose up -d failed, see the log."; rm -f "$PIDF"; exit 1; }
+    wait_ready; rm -f "$PIDF" ;;
+  _up)        # background job: later starts
+    echo $$ > "$PIDF"
+    set_state starting "docker compose up -d" ""
+    open_lan
+    if ( cd "$DIR" && docker compose up -d ) >>"$LOG" 2>&1; then wait_ready; else fail "docker compose up -d failed, see the log."; fi
+    rm -f "$PIDF" ;;
+  web)
+    ensure_web ;;
+  start)
+    ensure_web
+    installing && exit 0
+    if [ -f "$DIR/compose.yaml" ]; then nohup "$0" _up >/dev/null 2>&1 &
+    else nohup "$0" _install >/dev/null 2>&1 &
+    fi
+    exit 0 ;;
+  stop)
+    alive "$WEBPID" && kill "$(cat "$WEBPID")" 2>/dev/null
+    rm -f "$WEBPID"
+    exit 0 ;;
+  status)
+    installing && exit 0
+    [ -f "$DIR/compose.yaml" ] || exit 3
+    ( cd "$DIR" && docker compose ps --status running -q 2>/dev/null | grep -q . ) && exit 0
+    exit 3 ;;
+  *)
+    exit 1 ;;
+esac

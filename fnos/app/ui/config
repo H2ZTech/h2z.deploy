@@ -1,0 +1,14 @@
+{
+  ".url": {
+    "com.h2ztech.security.main": {
+      "title": "H2Z Riser",
+      "desc": "H2Z NVR",
+      "icon": "images/icon-{0}.png",
+      "type": "url",
+      "protocol": "http",
+      "port": "18099",
+      "url": "/",
+      "allUsers": true
+    }
+  }
+}
