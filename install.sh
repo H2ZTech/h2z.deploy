@@ -204,7 +204,9 @@ if [ "$START" = 0 ]; then
 fi
 say "7/8 Pulling images and starting (the first pull downloads several GB: minutes to tens of minutes)"
 if [ "$DRY" = 1 ]; then echo "[dry-run] docker compose config / pull / up -d --wait"; else
-  dk "cd '$DIR' && docker compose config --quiet && docker compose pull && docker compose up -d --wait --wait-timeout 180"
+  # The first pull is several GB; a flaky DNS / network (e.g. "lookup ghcr.io: Temporary failure in name resolution") aborts it.
+  # Layers already downloaded are kept, so retrying a few times is cheap.
+  dk "cd '$DIR' && docker compose config --quiet && { n=0; until docker compose pull; do n=\$((n+1)); [ \$n -ge 5 ] && { echo 'docker compose pull failed 5 times: check this machine can resolve and reach ghcr.io (DNS)'; exit 1; }; echo \"== pull failed, retry \$n/4 in 20 s\"; sleep 20; done; } && docker compose up -d --wait --wait-timeout 180"
 fi
 
 # ---------- 8. Seed the default project + smoke test ----------
