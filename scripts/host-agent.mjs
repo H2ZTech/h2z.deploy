@@ -614,7 +614,7 @@ export function createAgent(opts = {}) {
     const s = await settings();
     // no WiFi (most x86 boxes): AP_IF is empty and there is simply no maintenance hotspot
     if (!s || !s.lanIf)
-      throw new AgentError('E_NOT_READY', '设备网络还没有初始化：在设备上执行 sudo sh host/setup-host-network.sh', 409);
+      throw new AgentError('E_NOT_READY', '网络由宿主系统管理，此设备未接管网卡/热点', 409);
     return s;
   }
 
@@ -2600,7 +2600,9 @@ export function createAgent(opts = {}) {
       /* ignore */
     }
     const tailscale = await tailscaleStatus();
-    if (!s || !s.lanIf) return { ready: false, hint: 'sudo sh host/setup-host-network.sh', hostname, tailscale };
+    // NIC/hotspot layer not taken over (install default --network=skip, e.g. NAS/FnOS): the host OS owns the network.
+    // Never hand end users a shell command; the UI shows a read-only card for this state.
+    if (!s || !s.lanIf) return { ready: false, managed: 'host', hostname, tailscale };
     const [lan, ap] = await Promise.all([lanStatus(s), apStatus(s)]);
     return { ready: true, hostname, lan, ap, tailscale };
   }
