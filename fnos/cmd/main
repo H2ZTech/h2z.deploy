@@ -60,6 +60,19 @@ fail() { # <message>
   tail -n 60 "$LOG" > "$TAIL" 2>/dev/null || true
 }
 
+# docker compose up -d with one retry (a container that is still stopping can make the first attempt fail, e.g. the tailscale recreate).
+# If it still reports an error but the web UI answers, carry on: the stack is usable and the reason is in the log above.
+compose_up() {
+  ( cd "$DIR" && docker compose up -d ) >>"$LOG" 2>&1 && return 0
+  echo "== docker compose up -d failed; retrying in 5 s" >>"$LOG"; sleep 5
+  ( cd "$DIR" && docker compose up -d ) >>"$LOG" 2>&1 && return 0
+  if app_up; then
+    echo "== docker compose up -d still reports an error, but the web UI answers on port $APP_PORT; continuing (see the messages above)" >>"$LOG"
+    return 0
+  fi
+  return 1
+}
+
 # Wait until the web UI answers (up to ~3 min), then publish the result
 wait_ready() {
   i=0
@@ -93,13 +106,13 @@ case "$1" in
       fail "install.sh failed (exit code $rc): $(grep -E '^ERROR|FAIL' "$LOG" | tail -n 1)"; rm -f "$PIDF"; exit 1
     fi
     open_lan
-    ( cd "$DIR" && docker compose up -d ) >>"$LOG" 2>&1 || { fail "docker compose up -d failed, see the log."; rm -f "$PIDF"; exit 1; }
+    compose_up || { fail "docker compose up -d failed, see the log."; rm -f "$PIDF"; exit 1; }
     wait_ready; rm -f "$PIDF" ;;
   _up)        # background job: later starts
     echo $$ > "$PIDF"
     set_state starting "docker compose up -d" ""
     open_lan
-    if ( cd "$DIR" && docker compose up -d ) >>"$LOG" 2>&1; then wait_ready; else fail "docker compose up -d failed, see the log."; fi
+    if compose_up; then wait_ready; else fail "docker compose up -d failed, see the log."; fi
     rm -f "$PIDF" ;;
   web)
     ensure_web ;;

@@ -19,6 +19,13 @@ async function http(path, auth=false) {
   const r = await fetch(base+path,{headers:auth?{Authorization:'Bearer '+token}:{},signal:AbortSignal.timeout(15000)});
   return {status:r.status,body:await r.text()};
 }
+// /api/security/* is gated by the LAN login in nginx and the IOC admin token is not a login, so an outside request gets 401 even when the platform is fine.
+// Probe those paths from inside the backend container (the same way the engine-token check below does); everything else goes through nginx as before.
+async function api(path, auth=false) {
+  if (!path.startsWith('/api/security/')) return http(path, auth);
+  const out = inside('backend', `fetch('http://127.0.0.1:3001${path.slice(4)}').then(async r=>console.log(JSON.stringify({status:r.status,body:await r.text()}))).catch(()=>process.exit(1))`);
+  return JSON.parse(out);
+}
 function inside(service, code) {
   // Arguments go directly to docker; never through a shell. Child errors are sanitized.
   try { return execFileSync('docker',['compose','exec','-T',service,'node','-e',code],{encoding:'utf8',timeout:30000,stdio:['ignore','pipe','pipe']}).trim(); }
@@ -45,7 +52,7 @@ await check('IOC write rejects anonymous',async()=>{
   const r=await fetch(base+'/api/ioc/projects',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({projectId:'auth-probe-never-create',name:'Auth probe',mode:'dashboard'})});
   assert([401,403].includes(r.status),'anonymous create not denied: '+r.status);
 });
-await check('platform security health',async()=>assert((await http('/api/security/health')).status===200,'security health failed'));
+await check('platform security health',async()=>assert((await api('/api/security/health')).status===200,'security health failed'));
 await check('IOC → h2z API with service token',needs('h2z-api',()=>assert(inside('backend',`const fs=require('fs');fetch('http://h2z-api:3083/v1/capabilities',{headers:{Authorization:'Bearer '+fs.readFileSync(process.env.IOC_H2Z_TOKEN_FILE,'utf8').trim()}}).then(async r=>{if(!r.ok)process.exit(1);console.log('ok')}).catch(()=>process.exit(1))`)==='ok','AI token failed')));
 await check('AI API denies missing token',needs('h2z-api',()=>assert(inside('backend',`fetch('http://h2z-api:3083/v1/capabilities').then(r=>{if(r.status!==401)process.exit(1);console.log('ok')})`)==='ok','AI auth failed')));
 await check('Node-RED bridge health',needs(configured&&!configured.has('nodered-bridge')?'h2z-api':'nodered-bridge',()=>assert(inside('backend',`fetch('http://nodered-bridge:3090/healthz').then(r=>{if(!r.ok)process.exit(1);console.log('ok')})`)==='ok','bridge failed')));
@@ -86,14 +93,14 @@ for(const [name,path,field] of [
   ['security dock summary','/api/security/ioc/docks',null],
 ]) {
   await check(name,async()=>{
-    const r=await http(path,true);
+    const r=await api(path,true);
     assert(r.status===200,'HTTP '+r.status+' at '+path);
     let value; try { value=JSON.parse(r.body); } catch { throw Error('response is not JSON'); }
     assert(value!==null&&typeof value==='object','response is not an object');
     if(field) assert(Array.isArray(value[field]),'missing array: '+field);
   },full);
 }
-await check('current platform YOLO algorithm API',async()=>assert((await http('/api/security/ioc/ai/algorithms')).status===200,'image does not provide algorithm API'),full);
+await check('current platform YOLO algorithm API',async()=>assert((await api('/api/security/ioc/ai/algorithms')).status===200,'image does not provide algorithm API'),full);
 await check('current IOC AI scenarios relay',async()=>assert((await http('/api/ioc/ai/scenarios',true)).status===200,'image does not provide AI scenarios relay'),full);
 await check('current platform engine-token guard',()=>assert(inside('backend',`fetch('http://127.0.0.1:3001/security/ioc/ai/engine/yolo8-vehicle/configs').then(r=>{if(r.status!==401)process.exit(1);console.log('ok')})`)==='ok','current engine guard unavailable'),full);
 mkdirSync('runtime',{recursive:true});
