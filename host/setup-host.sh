@@ -68,7 +68,7 @@ Architectures: $(dpkg --print-architecture)
 Signed-By: /etc/apt/keyrings/cloudflare-main.gpg
 SRC
   rc=0
-  { apt-get update -qq && DEBIAN_FRONTEND=noninteractive apt-get install -y -qq cloudflared; } || rc=$?
+  { apt-get update -qq || echo "WARNING: apt-get update reported errors; trying the cloudflared install anyway" >&2; DEBIAN_FRONTEND=noninteractive apt-get install -y -qq cloudflared; } || rc=$?
   # Leave no repo or key behind: apt upgrade will not silently upgrade it later, the version stays with this machine
   rm -f /etc/apt/sources.list.d/cloudflared.sources /etc/apt/keyrings/cloudflare-main.gpg
   return $rc

@@ -91,7 +91,14 @@ fi
 
 # ---------- 2. Base tools ----------
 say "2/8 Installing base tools"
-run apt-get update -y
+# A leftover apt source of ours (host/setup-host.sh adds and removes it around the cloudflared install) must not break apt update
+if [ "$DRY" = 0 ] && grep -qs 'Signed-By: /etc/apt/keyrings/cloudflare-main.gpg' /etc/apt/sources.list.d/cloudflared.sources 2>/dev/null; then
+  echo "Removing a leftover cloudflared apt source (re-added only when cloudflared is installed)"
+  rm -f /etc/apt/sources.list.d/cloudflared.sources /etc/apt/keyrings/cloudflare-main.gpg
+fi
+# apt update can fail because of an unrelated third-party source on the machine (expired key, unreachable mirror):
+# warn and carry on; the install below fails clearly if a needed package is really unavailable.
+run apt-get update -y || echo "WARNING: apt-get update reported errors (see above); continuing with the package lists that were fetched"
 run apt-get install -y git ca-certificates curl jq python3 nodejs npm openssh-client
 
 # ---------- 3. Fetch code ----------
