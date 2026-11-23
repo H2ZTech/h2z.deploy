@@ -12,8 +12,14 @@ set -eu
 # 本机已经有别的 Tailscale（飞牛 / 群晖这类系统自带的，占着 tailscale0）：不启动、也不反复重启（重启会把它的地址冲掉，
 # tailnet 上 IOC 8096 就打不开；LA9 2026-11-02）。我们自己的 tailscaled 退出时网卡随之删除，所以启动时网卡还在 = 别人的。
 if [ -e /sys/class/net/tailscale0 ]; then
-  echo "h2z: 本机已有 Tailscale（tailscale0 被别的程序占用），不启动产品自带的 tailscale；远程访问走本机的 Tailscale"
-  exec sleep 2147483647
+  # 别人的 tailscaled 在跑时网卡是 UP（operstate=unknown）；operstate=down 是残留：宿主的 Tailscale 已卸载 / 已停（LA9 2026-11-22：
+  # 飞牛的 Tailscale 卸载后 tailscale0 还留着），没有程序在用它。残留的网卡删掉，继续启动我们自己的；删不掉才让给宿主。
+  if [ "$(cat /sys/class/net/tailscale0/operstate 2>/dev/null)" = down ] && ip link delete tailscale0 2>/dev/null; then
+    echo "h2z: 删除了残留的 tailscale0（宿主的 Tailscale 已卸载或已停止），启动产品自带的 tailscale"
+  else
+    echo "h2z: 本机已有 Tailscale（tailscale0 被别的程序占用），不启动产品自带的 tailscale；远程访问走本机的 Tailscale"
+    exec sleep 2147483647
+  fi
 fi
 out=/tmp/h2z-serve.json
 entries=''
