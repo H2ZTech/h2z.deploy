@@ -1902,6 +1902,10 @@ export function createAgent(opts = {}) {
       // 只有 HEAD 离开了「下载好时的提交」（升级完成 / 有人手动 pull 或回退过）才作废。
       const head = (await gitCurrent(repo, true)).commit;
       if (st.readyHead && head && head !== st.readyHead) return await saveGit({ state: 'idle', latest: null, progress: null, error: null, readyHead: null });
+      // The code is merged at download time, so HEAD does not move on upgrade: a git upgrade that finished after the download means this one is applied.
+      const up = await readJson(U.state);
+      const doneAt = up && up.job === 'git' && up.phase === 'done' ? Date.parse(up.finishedAt || '') : NaN;
+      if (st.readyAt ? doneAt > Date.parse(st.readyAt) : doneAt > 0) return await saveGit({ state: 'idle', latest: null, progress: null, error: null, readyHead: null, readyAt: null });
       return st;
     }
     if (st.state === 'available' && st.latest && !hostBusy(await readJson(U.state))) {
@@ -1956,7 +1960,7 @@ export function createAgent(opts = {}) {
         await asOwnerChild(repo, 'cd "$1" && if command -v ionice >/dev/null 2>&1; then ionice -c3 nice -n 19 docker compose pull --ignore-pull-failures --quiet; else docker compose pull --ignore-pull-failures --quiet; fi', 60 * 60_000);
         gitCur = { at: 0, val: null };
         const readyHead = (await gitCurrent(repo, true)).commit; // remember what "downloaded" means: HEAD after the merge
-        await saveGit({ state: 'ready', progress: null, readyHead });
+        await saveGit({ state: 'ready', progress: null, readyHead, readyAt: new Date(now()).toISOString() });
       } catch (e) {
         if (gitCancel) await saveGit({ state: 'available', progress: null, error: null });
         else {
