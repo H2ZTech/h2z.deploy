@@ -182,8 +182,11 @@ test('local-display scripts after git pull: host-agent runs host/install-kiosk.s
 test('not initialised: status says so and changes are refused', async () => {
   const etc = mkdtempSync(join(tmpdir(), 'ha-'));
   const agent = createAgent({ hostEtc: etc, host: async () => '', tailscaleSocket: join(etc, 'x') });
-  assert.equal((await agent.status()).ready, false);
-  await assert.rejects(agent.applyLan({ mode: 'dhcp' }), /setup-host-network/);
+  const st = await agent.status();
+  assert.equal(st.ready, false);
+  assert.equal(st.managed, 'host');
+  assert.equal(st.hint, undefined, 'no shell command is offered to end users');
+  await assert.rejects(agent.applyLan({ mode: 'dhcp' }), /E_NOT_READY|宿主系统管理/);
 });
 
 test('unix socket API', async () => {
