@@ -94,7 +94,7 @@ case "$1" in
     if ! curl -fsSL --retry 3 --max-time 120 -o "$WEB/install.sh" "$REPO_RAW/install.sh" >>"$LOG" 2>&1; then
       fail "Could not download install.sh from GitHub. Check that this machine can reach raw.githubusercontent.com."; rm -f "$PIDF"; exit 1
     fi
-    sh "$WEB/install.sh" --dir "$DIR" --lang zh-CN --auto-project >>"$LOG" 2>&1 &
+    sh "$WEB/install.sh" --dir "$DIR" >>"$LOG" 2>&1 &
     ipid=$!
     while kill -0 "$ipid" 2>/dev/null; do
       set_state installing "$(grep '^== ' "$LOG" | tail -n 1)" ""

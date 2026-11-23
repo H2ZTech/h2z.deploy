@@ -95,11 +95,16 @@ services:
       PORT: '3001'
       HOST: 0.0.0.0
       IOC_DATA_DIR: /app/data/ioc
-      IOC_AUTH: none
+      # LAN login: default none; set IOC_AUTH=token in .env to turn it on (same as the C line)
+      IOC_AUTH: ${IOC_AUTH:-none}
       # Leave IOC_NETWORK_SCOPE empty: the default exploration scope then follows the board's real
       # network as published by the host-network service (cable / DHCP changes are picked up).
       IOC_NETWORK_SCOPE: ${IOC_NETWORK_SCOPE:-}
       # H2Z OS (set by h2z-os-stack): first boot creates a project for this device; the device language defaults to English
+      # Unified account: device-level operations only accept the logged-in system administrator (same as the C line)
+      IOC_DEVICE_KEY_MODE: jwt
+      # Only the warehouse template is offered; the admin no longer asks for a project type
+      IOC_LOCK_TEMPLATE: warehouse
       IOC_AUTO_PROJECT: ${IOC_AUTO_PROJECT:-}
       IOC_DEFAULT_LANG: ${IOC_DEFAULT_LANG:-en}
       # Transcode caps follow the ZLM memory budget (scripts/transcode-budget.mjs writes these into .env from host RAM); empty = backend defaults

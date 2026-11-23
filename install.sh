@@ -26,10 +26,10 @@ umask 022
 
 REPO_SLUG=${REPO_SLUG:-H2ZTech/h2z.deploy}   # public deployment repo, no token needed
 REPO_URL=${REPO_URL:-https://github.com/$REPO_SLUG.git}
-BRANCH=main; DIR=; AUTH=; NET=skip; START=1; FORCE=0; YES=0; DRY=0; LANG_DEFAULT=; AUTO_PROJECT=0
+BRANCH=main; DIR=; AUTH=; NET=skip; START=1; FORCE=0; YES=0; DRY=0
 while [ $# -gt 0 ]; do
   case $1 in
-    --dir) DIR=$2; shift ;; --branch) BRANCH=$2; shift ;; --auth) AUTH=$2; shift ;; --network) NET=$2; shift ;; --lang) LANG_DEFAULT=$2; shift ;; --auto-project) AUTO_PROJECT=1 ;;
+    --dir) DIR=$2; shift ;; --branch) BRANCH=$2; shift ;; --auth) AUTH=$2; shift ;; --network) NET=$2; shift ;;
     --no-start) START=0 ;; --force) FORCE=1 ;; --yes) YES=1 ;; --dry-run) DRY=1 ;;
     -h|--help) sed -n '2,23p' "$0"; exit 0 ;;
     *) echo "Unknown option: $1" >&2; exit 2 ;;
@@ -174,11 +174,12 @@ if [ "$DRY" = 0 ]; then
 $BAD"
 fi
 
-# Device language and first-boot project (used by the FnOS package): written before the stack starts
+# Same defaults as the C line (h2z-os-stack): the backend creates the device project and its space on first start,
+# and the device language is English (switchable in the admin). A value already in .env is kept.
 if [ "$DRY" = 0 ]; then
   setenv() { if grep -q "^$1=" "$DIR/.env"; then sed -i "s|^$1=.*|$1=$2|" "$DIR/.env"; else echo "$1=$2" >> "$DIR/.env"; fi; }
-  [ -z "$LANG_DEFAULT" ] || setenv IOC_DEFAULT_LANG "$LANG_DEFAULT"
-  [ "$AUTO_PROJECT" != 1 ] || setenv IOC_AUTO_PROJECT 1
+  setenv IOC_AUTO_PROJECT 1
+  grep -q '^IOC_DEFAULT_LANG=' "$DIR/.env" || setenv IOC_DEFAULT_LANG en
 fi
 
 # ---------- 6. Image check (arm64) ----------

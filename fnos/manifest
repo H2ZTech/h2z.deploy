@@ -10,4 +10,4 @@ service_port=18099
 desktop_uidir=ui
 desktop_applaunchname=com.h2ztech.security.main
 ctl_stop=false
-changelog=0.2.4 install with Chinese default language and an automatically created device project and space
+changelog=0.2.4 English default language like the C line, device project and space created automatically, unified admin login
