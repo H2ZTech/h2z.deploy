@@ -83,12 +83,14 @@ await check('TDengine log directory under 2 GB',()=>{
   assert(Number.isFinite(mb)&&mb<2048,'td-log '+mb+' MB');
 });
 const full = process.argv.includes('--full');
+let PID='security';
+try { const st=JSON.parse((await http('/api/ioc/settings',true)).body); if(st.currentProject) PID=st.currentProject; } catch { /* keep default */ }
 for(const [name,path,field] of [
-  ['IOC project alarms','/api/ioc/projects/security/alarms?status=active&limit=50','alarms'],
-  ['IOC project dock summary','/api/ioc/projects/security/ai/docks',null],
-  ['IOC project camera list','/api/ioc/projects/security/network/cameras','cameras'],
-  ['IOC project space list','/api/ioc/projects/security/network/spaces',null],
-  ['IOC warehouse initialization state','/api/ioc/projects/security/warehouse',null],
+  ['IOC project alarms','/api/ioc/projects/'+PID+'/alarms?status=active&limit=50','alarms'],
+  ['IOC project dock summary','/api/ioc/projects/'+PID+'/ai/docks',null],
+  ['IOC project camera list','/api/ioc/projects/'+PID+'/network/cameras','cameras'],
+  ['IOC project space list','/api/ioc/projects/'+PID+'/network/spaces',null],
+  ['IOC warehouse initialization state','/api/ioc/projects/'+PID+'/warehouse',null],
   ['security alarms','/api/security/ioc/alarms?status=active&limit=50',null],
   ['security dock summary','/api/security/ioc/docks',null],
 ]) {

@@ -26,10 +26,10 @@ umask 022
 
 REPO_SLUG=${REPO_SLUG:-H2ZTech/h2z.deploy}   # public deployment repo, no token needed
 REPO_URL=${REPO_URL:-https://github.com/$REPO_SLUG.git}
-BRANCH=main; DIR=; AUTH=; NET=skip; START=1; FORCE=0; YES=0; DRY=0
+BRANCH=main; DIR=; AUTH=; NET=skip; START=1; FORCE=0; YES=0; DRY=0; LANG_DEFAULT=; AUTO_PROJECT=0
 while [ $# -gt 0 ]; do
   case $1 in
-    --dir) DIR=$2; shift ;; --branch) BRANCH=$2; shift ;; --auth) AUTH=$2; shift ;; --network) NET=$2; shift ;;
+    --dir) DIR=$2; shift ;; --branch) BRANCH=$2; shift ;; --auth) AUTH=$2; shift ;; --network) NET=$2; shift ;; --lang) LANG_DEFAULT=$2; shift ;; --auto-project) AUTO_PROJECT=1 ;;
     --no-start) START=0 ;; --force) FORCE=1 ;; --yes) YES=1 ;; --dry-run) DRY=1 ;;
     -h|--help) sed -n '2,23p' "$0"; exit 0 ;;
     *) echo "Unknown option: $1" >&2; exit 2 ;;
@@ -172,6 +172,13 @@ if [ "$DRY" = 0 ]; then
   BAD=$(grep -E '^[A-Z_]+_IMAGE=' "$DIR/.env" | grep -E '=[A-Za-z0-9-]+(\.[A-Za-z0-9-]+)+(:[0-9]+)?/' | grep -v '=ghcr.io/h2ztech/' || true)
   [ -z "$BAD" ] || die "found image(s) from a registry other than GHCR in .env; delete $DIR/.env and re-run:
 $BAD"
+fi
+
+# Device language and first-boot project (used by the FnOS package): written before the stack starts
+if [ "$DRY" = 0 ]; then
+  setenv() { if grep -q "^$1=" "$DIR/.env"; then sed -i "s|^$1=.*|$1=$2|" "$DIR/.env"; else echo "$1=$2" >> "$DIR/.env"; fi; }
+  [ -z "$LANG_DEFAULT" ] || setenv IOC_DEFAULT_LANG "$LANG_DEFAULT"
+  [ "$AUTO_PROJECT" != 1 ] || setenv IOC_AUTO_PROJECT 1
 fi
 
 # ---------- 6. Image check (arm64) ----------
