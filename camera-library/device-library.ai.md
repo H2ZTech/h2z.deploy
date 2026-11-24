@@ -263,7 +263,7 @@ Other enterprise numbers: 171 = D-Link; 534 = Eaton; 674 = Dell; 890 = Zyxel; 19
 
 ## 6. Cameras: brands and stream path conventions
 
-The library has 143 brands. Common ONVIF ports: 80, 8000, 8080, 2020. Identify the brand from the ONVIF manufacturer name, the HTTP auth realm and the model wording. Below is the preferred main / sub stream path pair for each brand (`{ch}` is the channel number):
+The library has 145 brands. Common ONVIF ports: 80, 8000, 8080, 2020. Identify the brand from the ONVIF manufacturer name, the HTTP auth realm and the model wording. Below is the preferred main / sub stream path pair for each brand (`{ch}` is the channel number):
 
 | Brand | Aliases | RTSP port | Main stream | Sub stream | Evidence |
 |---|---|---|---|---|---|

@@ -7,12 +7,13 @@
  */
 import { readFileSync, writeFileSync, existsSync } from 'node:fs';
 import { resolve } from 'node:path';
-import { LIB_DIR, ARTIFACT, loadRaw, buildArtifactText, checkCameraLibrary } from './library.mjs';
+import { LIB_DIR, ARTIFACT, loadRaw, buildArtifactText, checkCameraLibrary, contractDrift } from './library.mjs';
 
 const check = process.argv.includes('--check');
 try {
   if (check) {
     const problems = checkCameraLibrary();
+    if (!problems.length) problems.push(...contractDrift(loadRaw())); // only when ../h2z.bridge / ../h2z.activator are checked out next to this repo
     if (problems.length) {
       console.error('摄像头库检查未通过：\n- ' + problems.join('\n- '));
       process.exit(1);

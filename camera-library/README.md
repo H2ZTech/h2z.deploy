@@ -13,6 +13,7 @@ H2Z 所有摄像头品牌 / 码流路径知识的**唯一来源**，放在 h2z.s
 camera-library/
   data/imported.json   导入层。scripts/camera-library/import-ch-bas.mjs 生成，不要手改
   data/curated.json    手写层。识别词、锁定的变体、现场实测证据、旧代码里的兜底写法、ONVIF 默认端口
+  data/contracts.json  h2z.bridge 协议 id / h2z.activator 驱动 id 的快照，识别与分流字段的契约门禁用（见下面「识别与分流」）
   data/sources.json    来源台账。库里每条数据的来源都必须在这里登记，用法和许可必须在允许范围内
   data/THIRD_PARTY_NOTICES.md
   library.json         产物。build.mjs 把上面三份合并、校验、排好序生成的扁平文件，**后端读的是它**，要和 data/ 一起提交
@@ -102,6 +103,26 @@ node --test scripts/camera-library.test.mjs scripts/camera-library-import.test.m
 每条证据必须带链接和日期。查不到可靠资料的（目前：TVT 的激活和锁定、华三全部）如实写 `unknown` / `null`，不要为了完整去编。
 产物里不带证据和备注（和路径一致，证据留在 `data/`）。**锁定阈值要在真机上实测**（拿一台备用摄像头故意输错）后升级为 `verified`；没测之前后端用比文献更保守的预算。
 这些是公开的出厂值，不算密钥，但后端只对「疑似出厂」的设备、在每台设备的尝试预算内使用；成功后会改成站点统一口令。
+
+## 识别与分流（identity，2026-11-23）
+
+每个族在 `data/curated.json` 的 `identity` 里声明（只有 `family` 必填），产物里平铺到 `vendors[]`。后端用它做多信号识别和 A / B / C / D 分流（`h2z.backend/apps/ioc/src/network/camera-identify.ts`）：
+
+| 字段 | 含义 |
+| --- | --- |
+| `family` | 族 id；贴牌机归到同一族（`wisenet` → `hanwha`） |
+| `access[]` | 已激活后怎么取流，有顺序：`rtsp` 或 `bridge:<协议>`；每项各有等级（产物里是 `access` + 并行的 `accessStatus`） |
+| `activationDriver` | 未激活时用哪个 activator 驱动 |
+| `factoryState` | 怎么只读地判断未激活：`probe-field`（某个发现探针应答里的字段 = 某个值）/ `http-signal`（某个无鉴权 HTTP 信号在不在）/ `unknown` / `none` |
+| `oui` | MAC 前缀（IEEE 注册表快照），`values` 可以为空（如 TP-Link 的前缀是路由器共用的，不用来认 Tapo / Kasa） |
+| `fingerprints.rules[]` | 特征：`signal`（`probe` / `port` / `http.server` / `http.realm` / `http.title` / `http.tls.o` / `http.axisSetup` / `rtsp.server` / `ssdp.server` / `mdns.service` / `dhcp.vendorClass` / `dhcp.hostname`）+ `op`（`present` / `equals` / `prefix` / `contains`）+ `value`（文本一律小写）；每条各有等级。库里不放正则 |
+| `factory.factoryIpEvidence` | 每个出厂 IP 各自的等级和证据；产物里是 `factory.factoryIpStatus` |
+
+**等级规则和码流一致**：`verified` 必须有真机（`device`）证据，`documented` 必须有厂家文档（`vendor-doc`）或标准注册表（`registry`，OUI 用）证据，转载页只能是 `candidate`；`candidate` 没有链接时必须在 `note` 里写明依据。查不到的写 `unknown` / 空数组，不要编。
+
+**契约门禁**：`data/contracts.json` 是 h2z.bridge `protocols.json`（协议 id）和 h2z.activator 驱动清单的快照。`access` 里的 `bridge:<协议>` 必须在 `bridge.protocols` 里，`activationDriver` 必须在 `activator.drivers` 里，否则生成不出产物。`build.mjs --check` 在本机同级目录有 `h2z.bridge` / `h2z.activator` 时还会对照它们（路径可用 `H2Z_BRIDGE_DIR` / `H2Z_ACTIVATOR_DIR` 指定），契约变了没同步快照会报。模块装没装、支持不支持，运行时看它们的 `/v1/capabilities`，不在库里判断。
+
+**已知空缺（如实）**：宇视、TVT 没有未激活的只读判别方法；大华 `Init` 字段哪个值表示未初始化未确认，后端不会据此自动分流；Bosch 的 RTSP 写法只有主机名级别的出处；TVT、Tapo、Kasa、Reolink 没有查到出厂静态 IP（DHCP 或无资料）；Dahua / Bosch / 雄迈的出厂 IP 只有转载页线索（候选）。
 
 ## 已知局限
 

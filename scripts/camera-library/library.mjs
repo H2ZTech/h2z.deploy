@@ -11,7 +11,7 @@
  * validateRaw 是许可 / 来源 / 口令 / 路径安全的门禁：数据不合规就生成不出产物，测试里用坏数据验证它真的拦得住。
  * 库只存「事实 + 证据」，不存口令、不存默认口令。
  */
-import { readFileSync, existsSync } from 'node:fs';
+import { readFileSync, existsSync, readdirSync } from 'node:fs';
 import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -100,7 +100,7 @@ export function renderPath(template, ctx = {}) {
 // ---------------------------------------------------------------------------------------------------
 export function loadRaw(dir = LIB_DIR) {
   const read = (name) => JSON.parse(readFileSync(resolve(dir, 'data', name), 'utf8'));
-  return { imported: read('imported.json'), curated: read('curated.json'), sources: read('sources.json') };
+  return { imported: read('imported.json'), curated: read('curated.json'), sources: read('sources.json'), contracts: read('contracts.json') };
 }
 
 // ---------------------------------------------------------------------------------------------------
@@ -112,7 +112,7 @@ export function loadRaw(dir = LIB_DIR) {
 //   - 不收「别人设的口令」「常见弱口令字典」；每个品牌只列出厂值（通常 ≤ 2 条）；
 //   - 后端只对「疑似出厂」的设备、在每台设备的尝试预算内使用，见 h2z.backend apps/ioc/src/network/camera-onboard.ts。
 // ---------------------------------------------------------------------------------------------------
-export const FACTORY_EVIDENCE_SOURCE = { 'vendor-doc': 'vendor-doc', 'mirror-doc': 'third-party-cite', device: 'first-party' };
+export const FACTORY_EVIDENCE_SOURCE = { 'vendor-doc': 'vendor-doc', 'mirror-doc': 'third-party-cite', device: 'first-party', registry: 'standards' };
 const FACTORY_EVIDENCE_TYPES = Object.keys(FACTORY_EVIDENCE_SOURCE);
 const ACTIVATION_REQUIRED = ['always', 'new-firmware', 'none', 'unknown'];
 /**
@@ -141,7 +141,7 @@ function checkEvidence(p, where, status, evidence, usable) {
     if (e?.date !== undefined && !DATE.test(e.date)) p.push(`${where}：证据日期必须是 YYYY-MM-DD`);
   }
   if (status === 'verified' && !evidence.some((e) => e.type === 'device')) p.push(`${where}：verified 必须有真机（device）证据`);
-  if (status === 'documented' && !evidence.some((e) => e.type === 'vendor-doc')) p.push(`${where}：documented 必须有厂家文档（vendor-doc）证据（转载页只能是 candidate）`);
+  if (status === 'documented' && !evidence.some((e) => e.type === 'vendor-doc' || e.type === 'registry')) p.push(`${where}：documented 必须有厂家文档（vendor-doc）证据（转载页只能是 candidate）`);
 }
 
 /** curated 里一个品牌的 factory 校验；返回问题列表 */
@@ -192,6 +192,19 @@ export function factoryProblems(f, id, usable) {
     if (lk.maxAttempts !== null && STATUSES.includes(lk.status)) checkEvidence(p, `${w}.lock`, lk.status, lk.evidence, usable);
   }
   if (f.factoryIps !== undefined && !(Array.isArray(f.factoryIps) && f.factoryIps.length <= 5 && f.factoryIps.every((x) => IPV4.test(x)))) p.push(`${w}.factoryIps 必须是 IPv4 数组（最多 5 个）`);
+  // 2026-11-23: optional per-address evidence (factoryIpEvidence: { "<ip>": { status, evidence[], note? } }); a family that declares it must cover every address
+  if (f.factoryIpEvidence !== undefined) {
+    const ev = f.factoryIpEvidence;
+    if (!ev || typeof ev !== 'object' || Array.isArray(ev)) p.push(`${w}.factoryIpEvidence 必须是对象`);
+    else {
+      for (const ip of f.factoryIps || []) if (!ev[ip]) p.push(`${w}.factoryIpEvidence 缺少 ${ip} 的证据`);
+      for (const [ip, e] of Object.entries(ev)) {
+        if (!(f.factoryIps || []).includes(ip)) p.push(`${w}.factoryIpEvidence 里的 ${ip} 不在 factoryIps 里`);
+        else if (!STATUSES.includes(e?.status)) p.push(`${w}.factoryIpEvidence.${ip}.status 不合法`);
+        else groupEvidence(p, `${w}.factoryIpEvidence.${ip}`, e, usable);
+      }
+    }
+  }
   return p;
 }
 
@@ -209,6 +222,7 @@ function factoryOut(f) {
     lock: { maxAttempts: f.lock.maxAttempts, lockMinutes: f.lock.lockMinutes, status: f.lock.status },
     factoryIps: [...(f.factoryIps || [])],
   };
+  if (f.factoryIpEvidence) out.factoryIpStatus = Object.fromEntries(Object.entries(f.factoryIpEvidence).map(([ip, e]) => [ip, e.status]));
   return out;
 }
 
@@ -234,6 +248,155 @@ export function factoryArtifactProblems(f, id) {
   const n = (v, max) => v === null || (Number.isInteger(v) && v >= 1 && v <= max);
   if (!n(f.lock?.maxAttempts, 100) || !n(f.lock?.lockMinutes, 1440) || !STATUSES.includes(f.lock?.status)) p.push(`${w}.lock 不合法`);
   if (!Array.isArray(f.factoryIps) || !f.factoryIps.every((x) => IPV4.test(x))) p.push(`${w}.factoryIps 不合法`);
+  return p;
+}
+
+// ---------------------------------------------------------------------------------------------------
+// 识别与分流（identity，2026-11-23，PLAN-2026-11-23-CAMERA-ONBOARDING 第 3 节 / DEV-PLAN P2.10）
+//
+// 每个族在 curated 里声明（identity，字段都是可选的，只有 family 必填）：
+//   family          族 id（贴牌机归到同一个族；默认不写 = 不参与多信号识别）
+//   access[]        已激活后怎么取流，有顺序：{ via: 'rtsp' | 'bridge:<协议>', status, evidence[], note? }
+//                   bridge 协议必须在 data/contracts.json 的 bridge.protocols 里（h2z.bridge 的 protocols.json 快照）
+//   activationDriver  未激活时用哪个 activator 驱动；必须在 contracts.json 的 activator.drivers 里
+//   factoryState    怎么只读地判断「未激活」：{ kind: 'probe-field' | 'http-signal' | 'none' | 'unknown', status, evidence[] }
+//   oui             { values: ['AABBCC'...], status, evidence[] }  MAC 前缀（注册表快照）
+//   fingerprints    { rules: [{ id, signal, op, value, status, evidence[] }] }  多信号识别用的特征，每条各有等级
+// 每一组各有自己的等级（verified / documented / candidate），规则和码流一致；candidate 没有链接时必须在 note 里写明依据。
+// 库里不放正则（特征只有 present / equals / prefix / contains 四种比较），所以不需要正则安全门禁。
+// ---------------------------------------------------------------------------------------------------
+export const FP_SIGNALS = ['probe', 'port', 'http.server', 'http.realm', 'http.title', 'http.tls.o', 'http.axisSetup', 'rtsp.server', 'ssdp.server', 'mdns.service', 'dhcp.vendorClass', 'dhcp.hostname'];
+export const FP_OPS = ['present', 'equals', 'prefix', 'contains'];
+export const FACTORY_STATE_KINDS = ['probe-field', 'http-signal', 'none', 'unknown'];
+const FAMILY_ID = /^[a-z0-9][a-z0-9-]{0,40}$/;
+const ACCESS_VIA = /^(rtsp|bridge:[a-z][a-z0-9-]{1,19})$/;
+const OUI6 = /^[0-9A-F]{6}$/;
+const PROBE_ID = /^[a-z][a-z0-9-]{1,40}$/;
+
+/** A group's evidence: documented / verified need the proper evidence types; a candidate may carry none when its note says what it rests on */
+function groupEvidence(p, where, g, usable) {
+  if (Array.isArray(g?.evidence) && g.evidence.length) return checkEvidence(p, where, g.status, g.evidence, usable);
+  if (g?.status !== 'candidate') p.push(`${where}：${g?.status} 必须有证据`);
+  else if (typeof g.note !== 'string' || g.note.length < 10) p.push(`${where}：candidate 没有证据时必须在 note 里写明依据（至少 10 个字符）`);
+}
+
+export function identityProblems(idn, id, usable, contracts) {
+  const p = [];
+  const w = `curated.${id}.identity`;
+  if (!idn || typeof idn !== 'object' || Array.isArray(idn)) return [`${w} 必须是对象`];
+  const bridge = new Set(contracts?.bridge?.protocols || []);
+  const drivers = new Set(contracts?.activator?.drivers || []);
+  if (!bridge.size || !drivers.size) p.push('contracts.json 缺少 bridge.protocols / activator.drivers');
+  if (!FAMILY_ID.test(idn.family || '')) p.push(`${w}.family 不合法`);
+  if (idn.note !== undefined && (typeof idn.note !== 'string' || idn.note.length > 600)) p.push(`${w}.note 必须是 600 字以内的字符串`);
+
+  if (idn.access !== undefined) {
+    if (!Array.isArray(idn.access) || idn.access.length > 4) p.push(`${w}.access 必须是数组（最多 4 项；空数组 = 没有可用的取流方式）`);
+    else {
+      const seen = new Set();
+      idn.access.forEach((a, i) => {
+        const at = `${w}.access[${i}]`;
+        if (typeof a?.via !== 'string' || !ACCESS_VIA.test(a.via)) return p.push(`${at}.via 只能是 rtsp 或 bridge:<协议>`);
+        if (seen.has(a.via)) p.push(`${at}.via 重复：${a.via}`);
+        seen.add(a.via);
+        if (a.via.startsWith('bridge:') && !bridge.has(a.via.slice(7))) p.push(`${at}：h2z.bridge 的 protocols.json 里没有协议 ${a.via.slice(7)}`);
+        if (!STATUSES.includes(a.status)) p.push(`${at}.status 不合法`);
+        else groupEvidence(p, at, a, usable);
+        if (a.note !== undefined && (typeof a.note !== 'string' || a.note.length > 400)) p.push(`${at}.note 必须是 400 字以内的字符串`);
+      });
+    }
+  }
+  if (idn.activationDriver !== undefined && (typeof idn.activationDriver !== 'string' || !drivers.has(idn.activationDriver))) p.push(`${w}.activationDriver：activator 的驱动清单里没有 ${String(idn.activationDriver).slice(0, 40)}`);
+
+  const fs = idn.factoryState;
+  if (fs !== undefined) {
+    const at = `${w}.factoryState`;
+    if (!fs || typeof fs !== 'object' || !FACTORY_STATE_KINDS.includes(fs.kind)) p.push(`${at}.kind 只能是 ${FACTORY_STATE_KINDS.join(' / ')}`);
+    else {
+      if (!STATUSES.includes(fs.status)) p.push(`${at}.status 不合法`);
+      else if (fs.kind !== 'unknown' && fs.kind !== 'none') groupEvidence(p, at, fs, usable);
+      if (fs.kind === 'probe-field') {
+        if (typeof fs.probe !== 'string' || !PROBE_ID.test(fs.probe)) p.push(`${at}.probe 不合法`);
+        if (typeof fs.field !== 'string' || !/^[A-Za-z][A-Za-z0-9]{0,31}$/.test(fs.field)) p.push(`${at}.field 不合法`);
+        if (!['boolean', 'number'].includes(typeof fs.inactiveWhen)) p.push(`${at}.inactiveWhen 必须是布尔值或数字（字段取这个值 = 未激活）`);
+      }
+      if (fs.kind === 'http-signal') {
+        if (!FP_SIGNALS.includes(fs.signal) || !fs.signal.startsWith('http.')) p.push(`${at}.signal 必须是 http.* 信号`);
+        if (!['present', 'absent'].includes(fs.when)) p.push(`${at}.when 只能是 present / absent`);
+      }
+    }
+  }
+
+  const oui = idn.oui;
+  if (oui !== undefined) {
+    const at = `${w}.oui`;
+    if (!Array.isArray(oui?.values) || oui.values.length > 128 || !oui.values.every((x) => OUI6.test(x)) || new Set(oui.values).size !== oui.values.length) p.push(`${at}.values 必须是不重复的 6 位大写十六进制（最多 128 个）`);
+    else if (!STATUSES.includes(oui.status)) p.push(`${at}.status 不合法`);
+    else if (oui.values.length) groupEvidence(p, at, oui, usable);
+  }
+
+  const fp = idn.fingerprints;
+  if (fp !== undefined) {
+    const at = `${w}.fingerprints`;
+    if (!Array.isArray(fp?.rules) || fp.rules.length > 24) p.push(`${at}.rules 必须是数组（最多 24 条）`);
+    else {
+      const ids = new Set();
+      fp.rules.forEach((r, i) => {
+        const rt = `${at}.rules[${i}]`;
+        if (typeof r?.id !== 'string' || !/^[a-z0-9][a-z0-9.-]{1,40}$/.test(r.id) || ids.has(r.id)) return p.push(`${rt}.id 缺失、不合法或重复`);
+        ids.add(r.id);
+        if (!STATUSES.includes(r.status)) p.push(`${rt}.status 不合法`);
+        else groupEvidence(p, rt, r, usable);
+        if (!FP_SIGNALS.includes(r.signal)) p.push(`${rt}.signal 不合法：${r.signal}`);
+        if (!FP_OPS.includes(r.op)) p.push(`${rt}.op 不合法：${r.op}`);
+        const v = r.value;
+        if (r.signal === 'probe') {
+          if (r.op !== 'present' || typeof v !== 'string' || !PROBE_ID.test(v)) p.push(`${rt}：probe 特征必须是 op=present、value=探针 id`);
+        } else if (r.signal === 'port') {
+          if (r.op !== 'present' || !Number.isInteger(v) || !validPort(v)) p.push(`${rt}：port 特征必须是 op=present、value=端口号`);
+        } else if (r.signal === 'http.axisSetup') {
+          if (r.op !== 'present') p.push(`${rt}：http.axisSetup 只能是 op=present`);
+        } else if (typeof v !== 'string' || !v.length || v.length > 80 || lower(v) !== v || r.op === 'present') p.push(`${rt}：文本特征的 value 必须是 1–80 字符的小写字符串，op 不能是 present`);
+      });
+    }
+  }
+  return p;
+}
+
+/** 产物里的 identity：不带证据和备注（证据留在 data/ 里），每组只留等级 */
+function identityOut(idn) {
+  const out = { family: idn.family };
+  if (idn.access) {
+    out.access = idn.access.map((a) => a.via);
+    out.accessStatus = idn.access.map((a) => a.status);
+  }
+  if (idn.activationDriver) out.activationDriver = idn.activationDriver;
+  if (idn.factoryState) {
+    const { kind, probe, field, inactiveWhen, signal, when, status } = idn.factoryState;
+    out.factoryState = { kind, ...(probe !== undefined ? { probe, field, inactiveWhen } : {}), ...(signal !== undefined ? { signal, when } : {}), status };
+  }
+  if (idn.oui) out.oui = { values: [...idn.oui.values], status: idn.oui.status };
+  if (idn.fingerprints) out.fingerprints = { rules: idn.fingerprints.rules.map((r) => ({ id: r.id, signal: r.signal, op: r.op, ...(r.value !== undefined ? { value: r.value } : {}), status: r.status })) };
+  return out;
+}
+
+/** 产物里 identity 的结构检查（后端加载时做同一类检查） */
+export function identityArtifactProblems(v, bridgeIds, driverIds) {
+  const p = [];
+  const w = `${v.id}`;
+  if (!FAMILY_ID.test(v.family || '')) p.push(`${w}：family 不合法`);
+  if (v.access !== undefined) {
+    if (!Array.isArray(v.access) || !v.access.every((x) => typeof x === 'string' && ACCESS_VIA.test(x))) p.push(`${w}：access 不合法`);
+    else if (!Array.isArray(v.accessStatus) || v.accessStatus.length !== v.access.length || !v.accessStatus.every((s) => STATUSES.includes(s))) p.push(`${w}：accessStatus 和 access 对不上`);
+    else if (bridgeIds) for (const x of v.access) if (x.startsWith('bridge:') && !bridgeIds.has(x.slice(7))) p.push(`${w}：access 里的 ${x} 不在 bridge 协议清单里`);
+  }
+  if (v.activationDriver !== undefined && (typeof v.activationDriver !== 'string' || (driverIds && !driverIds.has(v.activationDriver)))) p.push(`${w}：activationDriver 不合法`);
+  if (v.factoryState !== undefined && (!FACTORY_STATE_KINDS.includes(v.factoryState?.kind) || !STATUSES.includes(v.factoryState?.status))) p.push(`${w}：factoryState 不合法`);
+  if (v.oui !== undefined && (!Array.isArray(v.oui?.values) || !v.oui.values.every((x) => OUI6.test(x)) || !STATUSES.includes(v.oui?.status))) p.push(`${w}：oui 不合法`);
+  if (v.fingerprints !== undefined) {
+    const ok = Array.isArray(v.fingerprints?.rules) && v.fingerprints.rules.every((r) => typeof r?.id === 'string' && FP_SIGNALS.includes(r.signal) && FP_OPS.includes(r.op) && STATUSES.includes(r.status));
+    if (!ok) p.push(`${w}：fingerprints 不合法`);
+  }
   return p;
 }
 
@@ -297,6 +460,7 @@ export function mergeLibrary(raw) {
     if (c.note) v.note = c.note;
     if (Array.isArray(c.quirks)) v.quirks = c.quirks.map((q) => ({ ...q }));
     if (c.factory) v.factory = JSON.parse(JSON.stringify(c.factory));
+    if (c.identity) v.identity = JSON.parse(JSON.stringify(c.identity));
   }
 
   // 旧代码里的兜底写法：只当探测候选，永远是 candidate
@@ -428,6 +592,7 @@ export function validateRaw(raw) {
   // 3) 手写层形状
   const cur = raw.curated || {};
   need(cur.schema === 1, 'curated.schema 必须是 1');
+  need(raw.contracts?.schema === 1 && Array.isArray(raw.contracts?.bridge?.protocols) && Array.isArray(raw.contracts?.activator?.drivers), 'contracts.json 缺失或不合规（schema 1，bridge.protocols，activator.drivers）');
   const portsOk = (a) => Array.isArray(a) && a.every(validPort);
   need(portsOk(cur.onvifPorts) && cur.onvifPorts.length, 'curated.onvifPorts 必须是端口数组');
   for (const [id, c] of Object.entries(cur.vendors || {})) {
@@ -437,6 +602,7 @@ export function validateRaw(raw) {
     need(!c.autoFill || c.pin, `curated.${id} 开了 autoFill 就必须锁定变体（pin）`);
     if (c.modelPatterns !== undefined) need(!modelPatternsProblem(c.modelPatterns), `curated.${id}.modelPatterns 不合规：${modelPatternsProblem(c.modelPatterns)}`);
     if (c.factory !== undefined) p.push(...factoryProblems(c.factory, id, usable));
+    if (c.identity !== undefined) p.push(...identityProblems(c.identity, id, usable, raw.contracts));
   }
 
   // 4) 合并后检查
@@ -453,7 +619,7 @@ export function validateRaw(raw) {
     need(typeof v.name === 'string' && v.name.length > 0, `${v.id}：缺少名称`);
     need(v.rtspPort === null || validPort(v.rtspPort), `${v.id}：rtspPort 不合法`);
     need(v.id === 'generic' || v.aliases.length > 0, `${v.id}：没有识别词`);
-    need(v.variants.length > 0 || v.factory, `${v.id}：没有变体`);
+    need(v.variants.length > 0 || v.factory || v.identity, `${v.id}：没有变体`);
     for (const variant of v.variants) {
       const where = `${variant.id}`;
       need(!seen.has(variant.id), `变体 id 重复：${variant.id}`);
@@ -546,6 +712,7 @@ export function toArtifact(lib) {
     if (v.requires) out.requires = [...v.requires];
     if (v.quirks) out.quirks = v.quirks.map((q) => ({ id: q.id, note: q.note }));
     if (v.factory) out.factory = factoryOut(v.factory);
+    if (v.identity) Object.assign(out, identityOut(v.identity));
     out.pairs = list;
     return out;
   });
@@ -608,6 +775,7 @@ export function validateArtifact(a) {
       if (typeof pr.main === 'string' && typeof pr.sub === 'string') for (const ch of [1, 2, 12]) need(renderPath(pr.main, { ch }) !== null && renderPath(pr.sub, { ch }) !== null, `${pr.id}：通道 ${ch} 渲染后不满足安全字符集`);
     }
     if (v?.factory !== undefined) p.push(...factoryArtifactProblems(v.factory, v.id));
+    if (v?.family !== undefined) p.push(...identityArtifactProblems(v));
     if (v?.autoFill) {
       const pin = (v.pairs || []).find((x) => x.id === v.pin);
       need(pin, `${v.id}：autoFill 的锁定写法 ${v.pin} 不在 pairs 里`);
@@ -625,6 +793,36 @@ export function validateArtifact(a) {
  * 整体检查（smoke 和 build --check 用）：数据过门禁、产物存在且结构合规、产物和数据对得上（改了数据没重新生成会被发现）。
  * 返回问题列表，空 = 通过。
  */
+/**
+ * data/contracts.json 和同级仓库的对照（只在这些仓库存在时做；CI 里通常没有，跳过）：
+ *   ../h2z.bridge/protocols.json 的协议 id、../h2z.activator/src/drivers 里注册的驱动 id 都必须出现在快照里。
+ * 路径可用 H2Z_BRIDGE_DIR / H2Z_ACTIVATOR_DIR 覆盖。返回问题列表。
+ */
+export function contractDrift(raw, { bridgeDir = process.env.H2Z_BRIDGE_DIR || resolve(LIB_DIR, '../../h2z.bridge'), activatorDir = process.env.H2Z_ACTIVATOR_DIR || resolve(LIB_DIR, '../../h2z.activator') } = {}) {
+  const p = [];
+  const bf = resolve(bridgeDir, 'protocols.json');
+  if (existsSync(bf)) {
+    try {
+      const ids = JSON.parse(readFileSync(bf, 'utf8')).protocols.map((x) => x.id);
+      for (const id of ids) if (!raw.contracts.bridge.protocols.includes(id)) p.push(`contracts.json 缺少 h2z.bridge 的协议 ${id}（先同步快照）`);
+      for (const id of raw.contracts.bridge.protocols) if (!ids.includes(id)) p.push(`contracts.json 里的协议 ${id} 已不在 h2z.bridge 的 protocols.json 里`);
+    } catch (e) {
+      p.push('读不到 h2z.bridge 的 protocols.json：' + e.message);
+    }
+  }
+  const dir = resolve(activatorDir, 'src/drivers');
+  if (existsSync(dir)) {
+    const ids = new Set();
+    for (const name of readdirSync(dir)) {
+      if (!name.endsWith('.mjs')) continue;
+      const text = readFileSync(resolve(dir, name), 'utf8');
+      for (const m of text.matchAll(/\bid:\s*'([a-z][a-z0-9-]+)'/g)) ids.add(m[1]);
+    }
+    for (const id of raw.contracts.activator.drivers) if (!ids.has(id)) p.push(`contracts.json 里的驱动 ${id} 在 h2z.activator 的 src/drivers 里找不到`);
+  }
+  return p;
+}
+
 export function checkCameraLibrary(dir = LIB_DIR) {
   let raw;
   try {

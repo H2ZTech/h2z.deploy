@@ -1,0 +1,12 @@
+{
+  "schema": 1,
+  "_doc": "Snapshot of the two module contracts the library may reference. The library gate (scripts/camera-library/library.mjs) accepts an `access` entry `bridge:<protocol>` only when <protocol> is listed under bridge.protocols, and an `activationDriver` only when it is listed under activator.drivers. `node scripts/camera-library/build.mjs --check` also compares this file with the sibling checkouts (../h2z.bridge/protocols.json, ../h2z.activator/src/drivers) when they exist, so a contract change that is not copied here is reported. Whether a module is installed and implements an entry is decided at run time from its /v1/capabilities, not here.",
+  "bridge": {
+    "source": "h2z.bridge protocols.json, contractVersion 1",
+    "protocols": ["dvrip", "tapo", "kasa", "rtsp", "onvif", "http", "isapi", "homekit"]
+  },
+  "activator": {
+    "source": "h2z.activator src/drivers (GET /v1/capabilities), apiVersion 1",
+    "drivers": ["hikvision-sadp", "onvif-generic", "axis-vapix", "hanwha-sunapi", "dahua", "uniview-lapi"]
+  }
+}

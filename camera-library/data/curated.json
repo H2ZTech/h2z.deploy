@@ -37,7 +37,96 @@
             "title": "TP-Link FAQ 2680：用 RTSP/ONVIF 查看 Tapo 摄像头"
           }
         }
-      ]
+      ],
+      "factory": {
+        "accounts": [],
+        "activation": {
+          "required": "always",
+          "methods": [
+            "app"
+          ],
+          "status": "documented",
+          "note": "A camera account has to be created in the Tapo app first (not the cloud account).",
+          "evidence": [
+            {
+              "type": "vendor-doc",
+              "url": "https://www.tp-link.com/us/support/faq/2680/",
+              "title": "TP-Link FAQ 2680: RTSP / ONVIF for Tapo cameras",
+              "date": "2026-11-23"
+            }
+          ]
+        },
+        "lock": {
+          "maxAttempts": null,
+          "lockMinutes": null,
+          "status": "candidate",
+          "note": "Unknown; the backend uses its conservative default."
+        },
+        "factoryIps": [],
+        "factoryIpEvidence": {}
+      },
+      "identity": {
+        "family": "tapo",
+        "access": [
+          {
+            "via": "rtsp",
+            "status": "documented",
+            "evidence": [
+              {
+                "type": "vendor-doc",
+                "url": "https://www.tp-link.com/us/support/faq/2680/",
+                "title": "TP-Link FAQ 2680: RTSP / ONVIF for Tapo cameras",
+                "date": "2026-11-23"
+              }
+            ]
+          },
+          {
+            "via": "bridge:tapo",
+            "status": "candidate",
+            "note": "Fallback through h2z-bridge (go2rtc tapo source); not verified on a real device yet (PLAN-2026-11-23 section 5.6)."
+          }
+        ],
+        "factoryState": {
+          "kind": "probe-field",
+          "probe": "tplink-tapo",
+          "field": "factoryDefault",
+          "inactiveWhen": true,
+          "status": "candidate",
+          "note": "factory_default flag of the UDP 20002 reply; not seen on one of our units. Tapo has no activator driver, so this only explains why a unit is not reachable."
+        },
+        "oui": {
+          "values": [],
+          "status": "candidate",
+          "note": "TP-Link prefixes are shared by routers and many other products; they are not used to recognise Tapo."
+        },
+        "fingerprints": {
+          "rules": [
+            {
+              "id": "tapo-udp20002",
+              "signal": "probe",
+              "op": "present",
+              "value": "tplink-tapo",
+              "status": "documented",
+              "evidence": [
+                {
+                  "type": "vendor-doc",
+                  "url": "https://www.tapo.com/en/faqs/network-ports-used-by-services",
+                  "title": "Tapo: network ports used by services (20002, 20015, 21112)",
+                  "date": "2026-11-23"
+                }
+              ]
+            },
+            {
+              "id": "tapo-onvif-port",
+              "signal": "port",
+              "op": "present",
+              "value": 2020,
+              "status": "candidate",
+              "note": "Tapo ONVIF port (library onvifPorts); other devices may use 2020 too."
+            }
+          ]
+        }
+      }
     },
     "hikvision": {
       "aliases": [
@@ -134,7 +223,191 @@
         "factoryIps": [
           "192.168.1.64",
           "192.0.0.64"
-        ]
+        ],
+        "factoryIpEvidence": {
+          "192.168.1.64": {
+            "status": "verified",
+            "evidence": [
+              {
+                "type": "device",
+                "date": "2026-11-21",
+                "model": "DS-2CD3T56WDV3-I3",
+                "result": "The factory-fresh unit used for the SADP activation test sat at 192.168.1.64",
+                "ref": "h2z.security/docs/HIKVISION-SADP-ACTIVATE-2026-11-21.md"
+              }
+            ]
+          },
+          "192.0.0.64": {
+            "status": "candidate",
+            "note": "Older Hikvision firmware default; carried over from the library before 2026-11-23 and not seen on our devices."
+          }
+        }
+      },
+      "identity": {
+        "family": "hikvision",
+        "access": [
+          {
+            "via": "rtsp",
+            "status": "documented",
+            "evidence": [
+              {
+                "type": "vendor-doc",
+                "url": "https://supportusa.hikvision.com/support/solutions/articles/17000129064-how-do-i-get-my-rtsp-stream-",
+                "title": "Hikvision US: how to get the RTSP stream",
+                "date": "2026-11-23"
+              }
+            ]
+          }
+        ],
+        "activationDriver": "hikvision-sadp",
+        "factoryState": {
+          "kind": "probe-field",
+          "probe": "sadp",
+          "field": "activated",
+          "inactiveWhen": false,
+          "status": "verified",
+          "evidence": [
+            {
+              "type": "device",
+              "date": "2026-11-21",
+              "model": "DS-2CD3T56WDV3-I3",
+              "result": "Factory-fresh unit answered the SADP inquiry at 192.168.1.64 with Activated=false; after activation the same field read true",
+              "ref": "h2z.security/docs/HIKVISION-SADP-ACTIVATE-2026-11-21.md"
+            }
+          ]
+        },
+        "oui": {
+          "values": [
+            "00BC99",
+            "040312",
+            "04EECD",
+            "083BC1",
+            "085411",
+            "08A189",
+            "08CC81",
+            "0C75D2",
+            "1012FB",
+            "1868CB",
+            "188025",
+            "240F9B",
+            "2428FD",
+            "2432AE",
+            "244845",
+            "24B105",
+            "2857BE",
+            "2CA59C",
+            "340962",
+            "3C1BF8",
+            "40ACBF",
+            "4419B6",
+            "4447CC",
+            "44A642",
+            "48785B",
+            "4C1F86",
+            "4C62DF",
+            "4CBD8F",
+            "4CF5DC",
+            "50E538",
+            "548C81",
+            "54C415",
+            "5803FB",
+            "5850ED",
+            "5C345B",
+            "64DB8B",
+            "686DBC",
+            "743FC2",
+            "80489F",
+            "807C62",
+            "80BEAF",
+            "80F5AE",
+            "849459",
+            "849A40",
+            "88DE39",
+            "8C22D2",
+            "8CE748",
+            "94E1AC",
+            "988B0A",
+            "989DE5",
+            "98DF82",
+            "98F112",
+            "A0FF0C",
+            "A41437",
+            "A42902",
+            "A44BD9",
+            "A4A459",
+            "A4D5C2",
+            "ACB92F",
+            "ACCB51",
+            "B4A382",
+            "BC2978",
+            "BC5E33",
+            "BC9B5E",
+            "BCAD28",
+            "BCBAC2",
+            "C0517E",
+            "C056E3",
+            "C06DED",
+            "C42F90",
+            "C8A702",
+            "D4E853",
+            "DC07F8",
+            "DCD26A",
+            "E0BAAD",
+            "E0CA3C",
+            "E0DF13",
+            "E4D58B",
+            "E8A0ED",
+            "ECA971",
+            "ECC89C",
+            "F84DFC",
+            "FC9FFD"
+          ],
+          "status": "documented",
+          "evidence": [
+            {
+              "type": "registry",
+              "url": "https://standards-oui.ieee.org/oui/oui.csv",
+              "title": "IEEE MA-L (OUI) registry; prefixes read from the nmap-mac-prefixes snapshot d058258 of that registry",
+              "date": "2026-11-23"
+            }
+          ]
+        },
+        "fingerprints": {
+          "rules": [
+            {
+              "id": "hik-sadp",
+              "signal": "probe",
+              "op": "present",
+              "value": "sadp",
+              "status": "verified",
+              "evidence": [
+                {
+                  "type": "device",
+                  "date": "2026-11-21",
+                  "model": "DS-2CD3T56WDV3-I3",
+                  "result": "Factory-fresh unit answered the SADP inquiry at 192.168.1.64 with Activated=false; after activation the same field read true",
+                  "ref": "h2z.security/docs/HIKVISION-SADP-ACTIVATE-2026-11-21.md"
+                }
+              ]
+            },
+            {
+              "id": "hik-http-server",
+              "signal": "http.server",
+              "op": "contains",
+              "value": "app-webs",
+              "status": "candidate",
+              "note": "Server header reported for Hikvision web servers in field reports; not yet recorded from our own units."
+            },
+            {
+              "id": "hik-sdk-port",
+              "signal": "port",
+              "op": "present",
+              "value": 8000,
+              "status": "candidate",
+              "note": "Hikvision SDK port (PLAN-2026-11-23 section 2.2 port list); other products use 8000 too, so it only adds a little weight."
+            }
+          ]
+        }
       }
     },
     "dahua": {
@@ -148,7 +421,141 @@
       "onvifPorts": [
         80
       ],
-      "note": "与库化之前 camera-credentials.streamPaths 的大华写法逐字一致（行为不变）。"
+      "note": "与库化之前 camera-credentials.streamPaths 的大华写法逐字一致（行为不变）。",
+      "factory": {
+        "accounts": [],
+        "activation": {
+          "required": "unknown",
+          "status": "candidate",
+          "note": "Dahua devices are initialised on first use (private protocol); no vendor document read yet."
+        },
+        "lock": {
+          "maxAttempts": null,
+          "lockMinutes": null,
+          "status": "candidate",
+          "note": "Unknown; the backend uses its conservative default."
+        },
+        "factoryIps": [
+          "192.168.1.108"
+        ],
+        "factoryIpEvidence": {
+          "192.168.1.108": {
+            "status": "candidate",
+            "evidence": [
+              {
+                "type": "mirror-doc",
+                "url": "https://www.manualslib.com/manual/3010973/Dahua-Web-5-0.html?page=14",
+                "title": "Dahua web 5.0 operation manual (reproduced; found by search on 2026-11-23, page not opened)",
+                "date": "2026-11-23"
+              }
+            ]
+          }
+        }
+      },
+      "identity": {
+        "family": "dahua",
+        "access": [
+          {
+            "via": "rtsp",
+            "status": "documented",
+            "evidence": [
+              {
+                "type": "vendor-doc",
+                "url": "https://dahuawiki.com/Remote_Access/RTSP_via_VLC",
+                "title": "Dahua wiki: RTSP via VLC",
+                "date": "2026-11-23"
+              }
+            ]
+          }
+        ],
+        "activationDriver": "dahua",
+        "factoryState": {
+          "kind": "probe-field",
+          "probe": "dahua-dhdiscover",
+          "field": "init",
+          "inactiveWhen": 0,
+          "status": "candidate",
+          "note": "Init field of the DHDiscover reply; which value means \"not initialised\" is not confirmed, so the backend never routes on it automatically."
+        },
+        "oui": {
+          "values": [
+            "08EDED",
+            "14A78B",
+            "24526A",
+            "30DDAA",
+            "38AF29",
+            "3CE36B",
+            "3CEF8C",
+            "407AA4",
+            "4C11BF",
+            "4C99E8",
+            "5CF51A",
+            "64FD29",
+            "6C1C71",
+            "74C929",
+            "8CE9B4",
+            "9002A9",
+            "98F9CC",
+            "9C1463",
+            "A0BD1D",
+            "A8CA87",
+            "B44C3B",
+            "BC325F",
+            "C0395A",
+            "C4AAC4",
+            "D4430E",
+            "E02EFE",
+            "E0508B",
+            "E4246C",
+            "F4B1C2",
+            "F8CE07",
+            "FC5F49",
+            "FCB69D"
+          ],
+          "status": "documented",
+          "evidence": [
+            {
+              "type": "registry",
+              "url": "https://standards-oui.ieee.org/oui/oui.csv",
+              "title": "IEEE MA-L (OUI) registry; prefixes read from the nmap-mac-prefixes snapshot d058258 of that registry",
+              "date": "2026-11-23"
+            }
+          ]
+        },
+        "fingerprints": {
+          "rules": [
+            {
+              "id": "dh-dhdiscover",
+              "signal": "probe",
+              "op": "present",
+              "value": "dahua-dhdiscover",
+              "status": "candidate",
+              "evidence": [
+                {
+                  "type": "mirror-doc",
+                  "url": "https://www.shadowserver.org/what-we-do/network-reporting/open-dvr-dhcpdiscover-report/",
+                  "title": "Shadowserver: open DVR DHDiscover report (UDP 37810)",
+                  "date": "2026-11-23"
+                },
+                {
+                  "type": "mirror-doc",
+                  "url": "https://technicaldocs.nozominetworks.com/products/smart-polling/autogenerated/topics/r_smart-polling_strategies_dahua.html",
+                  "title": "Nozomi: Dahua smart polling",
+                  "date": "2026-11-23"
+                }
+              ]
+            },
+            {
+              "id": "dh-sdk-port",
+              "signal": "port",
+              "op": "present",
+              "value": 37777,
+              "status": "candidate",
+              "note": "Dahua private TCP port (PLAN-2026-11-23 section 2.2 port list); not checked against a vendor document."
+            }
+          ]
+        }
+      }
     },
     "uniview": {
       "aliases": [
@@ -223,7 +630,57 @@
         },
         "factoryIps": [
           "192.168.1.13"
-        ]
+        ],
+        "factoryIpEvidence": {
+          "192.168.1.13": {
+            "status": "candidate",
+            "note": "From PLAN-2026-11-23 section 2.4 (dealer sources); carried over from the library before 2026-11-23 and not seen on our devices."
+          }
+        }
+      },
+      "identity": {
+        "family": "uniview",
+        "access": [
+          {
+            "via": "rtsp",
+            "status": "documented",
+            "evidence": [
+              {
+                "type": "vendor-doc",
+                "url": "https://global.uniview.com/res/202310/26/20231026_1890310_How%20to%20Get%20a%20Uniview%20Camera's%20RTSP%20Stream_974039_168459_0.pdf",
+                "title": "Uniview: how to get a camera RTSP stream",
+                "date": "2026-11-23"
+              }
+            ]
+          }
+        ],
+        "activationDriver": "uniview-lapi",
+        "factoryState": {
+          "kind": "unknown",
+          "status": "candidate",
+          "note": "No read-only way to tell an inactive Uniview unit is documented; the activator driver is planned only."
+        },
+        "oui": {
+          "values": [
+            "48EA63",
+            "6CF17E",
+            "88263F",
+            "C47905"
+          ],
+          "status": "documented",
+          "evidence": [
+            {
+              "type": "registry",
+              "url": "https://standards-oui.ieee.org/oui/oui.csv",
+              "title": "IEEE MA-L (OUI) registry; prefixes read from the nmap-mac-prefixes snapshot d058258 of that registry",
+              "date": "2026-11-23"
+            }
+          ]
+        },
+        "fingerprints": {
+          "rules": []
+        },
+        "note": "No unauthenticated banner or private discovery probe is known for Uniview; it is recognised from ONVIF device text, OUI and manual add."
       }
     },
     "tvt": {
@@ -260,7 +717,41 @@
           "status": "candidate",
           "note": "没有查到锁定规则，后端按保守默认（每台最多试 2 次）处理，真机测出阈值后再填"
         },
-        "factoryIps": []
+        "factoryIps": [],
+        "factoryIpEvidence": {}
+      },
+      "identity": {
+        "family": "tvt",
+        "access": [
+          {
+            "via": "rtsp",
+            "status": "candidate",
+            "note": "No TVT RTSP path is in the library yet; a device only reaches A after an RTSP probe or ONVIF answers."
+          }
+        ],
+        "factoryState": {
+          "kind": "unknown",
+          "status": "candidate",
+          "note": "No TVT activation or factory-state information found."
+        },
+        "oui": {
+          "values": [
+            "0018AE"
+          ],
+          "status": "documented",
+          "evidence": [
+            {
+              "type": "registry",
+              "url": "https://standards-oui.ieee.org/oui/oui.csv",
+              "title": "IEEE MA-L (OUI) registry; prefixes read from the nmap-mac-prefixes snapshot d058258 of that registry",
+              "date": "2026-11-23"
+            }
+          ]
+        },
+        "fingerprints": {
+          "rules": []
+        },
+        "note": "TVT has no private discovery probe in the plan (section 2.1 lists it as not found); recognised from OUI and ONVIF text."
       }
     },
     "h3c": {
@@ -285,6 +776,575 @@
           "note": "未知，后端按保守默认处理"
         },
         "factoryIps": []
+      }
+    },
+    "axis": {
+      "aliases": [
+        "axis"
+      ],
+      "factory": {
+        "accounts": [],
+        "activation": {
+          "required": "always",
+          "methods": [
+            "web"
+          ],
+          "status": "documented",
+          "note": "Axis devices have no default password; the first administrator password is set at first access.",
+          "evidence": [
+            {
+              "type": "vendor-doc",
+              "url": "https://www.axis.com/dam/public/86/91/02/initial-device-access-changes-en-US-115245.pdf",
+              "title": "Axis: initial device access changes",
+              "date": "2026-11-23"
+            }
+          ]
+        },
+        "lock": {
+          "maxAttempts": null,
+          "lockMinutes": null,
+          "status": "candidate",
+          "note": "Unknown; the backend uses its conservative default."
+        },
+        "factoryIps": [
+          "192.168.0.90"
+        ],
+        "factoryIpEvidence": {
+          "192.168.0.90": {
+            "status": "documented",
+            "evidence": [
+              {
+                "type": "vendor-doc",
+                "url": "https://help.axis.com/access-your-device",
+                "title": "Axis: how to assign an IP address and access your device (192.168.0.90/24 up to AXIS OS 11.11; link-local 169.254.0.0/16 from AXIS OS 12)",
+                "date": "2026-11-23"
+              }
+            ]
+          }
+        }
+      },
+      "identity": {
+        "family": "axis",
+        "access": [
+          {
+            "via": "rtsp",
+            "status": "documented",
+            "evidence": [
+              {
+                "type": "vendor-doc",
+                "url": "https://developer.axis.com/vapix/network-video/video-streaming/",
+                "title": "Axis VAPIX: video streaming",
+                "date": "2026-11-23"
+              }
+            ]
+          }
+        ],
+        "activationDriver": "axis-vapix",
+        "factoryState": {
+          "kind": "http-signal",
+          "signal": "http.axisSetup",
+          "when": "present",
+          "status": "candidate",
+          "evidence": [
+            {
+              "type": "vendor-doc",
+              "url": "https://www.axis.com/dam/public/86/91/02/initial-device-access-changes-en-US-115245.pdf",
+              "title": "Axis: initial device access changes",
+              "date": "2026-11-23"
+            }
+          ],
+          "note": "The Axis-Setup response header is read as \"no password set yet\"; not yet seen on one of our devices."
+        },
+        "oui": {
+          "values": [
+            "00408C",
+            "ACCC8E",
+            "B8A44F",
+            "E82725"
+          ],
+          "status": "documented",
+          "evidence": [
+            {
+              "type": "registry",
+              "url": "https://standards-oui.ieee.org/oui/oui.csv",
+              "title": "IEEE MA-L (OUI) registry; prefixes read from the nmap-mac-prefixes snapshot d058258 of that registry",
+              "date": "2026-11-23"
+            }
+          ]
+        },
+        "fingerprints": {
+          "rules": [
+            {
+              "id": "axis-mdns",
+              "signal": "mdns.service",
+              "op": "contains",
+              "value": "_axis-video._tcp",
+              "status": "candidate",
+              "note": "Axis DNS-SD service type (PLAN-2026-11-23 section 2.1); not checked against an Axis document."
+            },
+            {
+              "id": "axis-setup",
+              "signal": "http.axisSetup",
+              "op": "present",
+              "status": "candidate",
+              "evidence": [
+                {
+                  "type": "vendor-doc",
+                  "url": "https://www.axis.com/dam/public/86/91/02/initial-device-access-changes-en-US-115245.pdf",
+                  "title": "Axis: initial device access changes",
+                  "date": "2026-11-23"
+                }
+              ]
+            }
+          ]
+        }
+      }
+    },
+    "hanwha": {
+      "aliases": [
+        "hanwha"
+      ],
+      "factory": {
+        "accounts": [],
+        "activation": {
+          "required": "always",
+          "methods": [
+            "web"
+          ],
+          "minPasswordLength": 8,
+          "status": "documented",
+          "note": "No default password; the administrator password must be set before SUNAPI / ONVIF work (see the activator driver notes).",
+          "evidence": [
+            {
+              "type": "vendor-doc",
+              "url": "https://www.hanwhavision.com/wp-content/uploads/2021/10/IPCameraNetwork_Hardening_Guide_En_20230418.pdf",
+              "title": "Hanwha: IP camera network hardening guide",
+              "date": "2026-11-23"
+            }
+          ]
+        },
+        "lock": {
+          "maxAttempts": null,
+          "lockMinutes": null,
+          "status": "candidate",
+          "note": "Unknown; the backend uses its conservative default."
+        },
+        "factoryIps": [
+          "192.168.1.100"
+        ],
+        "factoryIpEvidence": {
+          "192.168.1.100": {
+            "status": "documented",
+            "evidence": [
+              {
+                "type": "vendor-doc",
+                "url": "https://support.hanwhavision.com/hc/en-001/articles/47257390979859-How-do-I-resolve-networking-issues-with-my-cameras",
+                "title": "Hanwha Vision: cameras ship with a default IP of 192.168.1.100 and DHCP mode",
+                "date": "2026-11-23"
+              }
+            ]
+          }
+        }
+      },
+      "identity": {
+        "family": "hanwha",
+        "access": [
+          {
+            "via": "rtsp",
+            "status": "documented",
+            "evidence": [
+              {
+                "type": "vendor-doc",
+                "url": "https://support.hanwhavision.com/hc/en-001/articles/47782445700243-Camera-RTSP-URL",
+                "title": "Hanwha Vision: camera RTSP URL",
+                "date": "2026-11-23"
+              }
+            ]
+          }
+        ],
+        "activationDriver": "hanwha-sunapi",
+        "factoryState": {
+          "kind": "unknown",
+          "status": "candidate",
+          "note": "The Hanwha discovery reply carries no activation flag; no other read-only check known."
+        },
+        "oui": {
+          "values": [
+            "000918",
+            "44B423",
+            "E43022"
+          ],
+          "status": "documented",
+          "evidence": [
+            {
+              "type": "registry",
+              "url": "https://standards-oui.ieee.org/oui/oui.csv",
+              "title": "IEEE MA-L (OUI) registry; prefixes read from the nmap-mac-prefixes snapshot d058258 of that registry",
+              "date": "2026-11-23"
+            }
+          ]
+        },
+        "fingerprints": {
+          "rules": [
+            {
+              "id": "hw-7701",
+              "signal": "probe",
+              "op": "present",
+              "value": "hanwha",
+              "status": "documented",
+              "evidence": [
+                {
+                  "type": "vendor-doc",
+                  "url": "https://support.hanwhavision.com/hc/en-001/articles/47782302118675",
+                  "title": "Hanwha Vision: SUNAPI discovery port 7701",
+                  "date": "2026-11-23"
+                }
+              ]
+            }
+          ]
+        }
+      }
+    },
+    "wisenet": {
+      "aliases": [
+        "wisenet"
+      ],
+      "identity": {
+        "family": "hanwha",
+        "note": "Wisenet is the Hanwha brand: same family, the family record is the hanwha entry."
+      }
+    },
+    "bosch": {
+      "aliases": [
+        "bosch"
+      ],
+      "factory": {
+        "accounts": [],
+        "activation": {
+          "required": "unknown",
+          "status": "candidate",
+          "note": "No Bosch document read yet on first-access behaviour."
+        },
+        "lock": {
+          "maxAttempts": null,
+          "lockMinutes": null,
+          "status": "candidate",
+          "note": "Unknown; the backend uses its conservative default."
+        },
+        "factoryIps": [
+          "192.168.0.1"
+        ],
+        "factoryIpEvidence": {
+          "192.168.0.1": {
+            "status": "candidate",
+            "evidence": [
+              {
+                "type": "mirror-doc",
+                "url": "https://www.videoexpertsgroup.com/glossary/bosch-camera-default-ip-username-password",
+                "title": "Video Experts Group glossary: Bosch default IP (found by search on 2026-11-23, page not opened)",
+                "date": "2026-11-23"
+              }
+            ]
+          }
+        }
+      },
+      "identity": {
+        "family": "bosch",
+        "access": [
+          {
+            "via": "rtsp",
+            "status": "candidate",
+            "note": "The library only cites the Bosch host, not a page; confirm the path with an RTSP probe."
+          }
+        ],
+        "factoryState": {
+          "kind": "unknown",
+          "status": "candidate",
+          "note": "No read-only factory-state check known for Bosch."
+        },
+        "oui": {
+          "values": [
+            "000131",
+            "000463"
+          ],
+          "status": "documented",
+          "evidence": [
+            {
+              "type": "registry",
+              "url": "https://standards-oui.ieee.org/oui/oui.csv",
+              "title": "IEEE MA-L (OUI) registry; prefixes read from the nmap-mac-prefixes snapshot d058258 of that registry",
+              "date": "2026-11-23"
+            }
+          ]
+        },
+        "fingerprints": {
+          "rules": [
+            {
+              "id": "bosch-1757",
+              "signal": "probe",
+              "op": "present",
+              "value": "bosch",
+              "status": "candidate",
+              "evidence": [
+                {
+                  "type": "mirror-doc",
+                  "url": "https://jmacfiles.s3.amazonaws.com/MBVXDVR8A-DataSheet.pdf",
+                  "title": "Bosch DVR datasheet (reproduced): network scan ports 1757 / 1758",
+                  "date": "2026-11-23"
+                }
+              ]
+            }
+          ]
+        }
+      }
+    },
+    "kasa": {
+      "name": "TP-Link Kasa",
+      "aliases": [
+        "kasa"
+      ],
+      "matchMode": "word",
+      "factory": {
+        "accounts": [],
+        "activation": {
+          "required": "unknown",
+          "status": "candidate",
+          "note": "Kasa devices are set up in the Kasa app; no vendor document read."
+        },
+        "lock": {
+          "maxAttempts": null,
+          "lockMinutes": null,
+          "status": "candidate",
+          "note": "Unknown; the backend uses its conservative default."
+        },
+        "factoryIps": [],
+        "factoryIpEvidence": {}
+      },
+      "identity": {
+        "family": "kasa",
+        "access": [
+          {
+            "via": "bridge:kasa",
+            "status": "candidate",
+            "evidence": [
+              {
+                "type": "mirror-doc",
+                "url": "https://python-kasa.readthedocs.io/en/stable/discover.html",
+                "title": "python-kasa: discovery (UDP 9999)",
+                "date": "2026-11-23"
+              }
+            ],
+            "note": "Through h2z-bridge only; not verified on a real device."
+          }
+        ],
+        "factoryState": {
+          "kind": "unknown",
+          "status": "candidate",
+          "note": "No read-only factory-state check known for Kasa."
+        },
+        "oui": {
+          "values": [],
+          "status": "candidate",
+          "note": "TP-Link prefixes are shared by routers and many other products; they are not used to recognise Kasa."
+        },
+        "fingerprints": {
+          "rules": [
+            {
+              "id": "kasa-udp9999",
+              "signal": "probe",
+              "op": "present",
+              "value": "tplink-kasa",
+              "status": "candidate",
+              "evidence": [
+                {
+                  "type": "mirror-doc",
+                  "url": "https://python-kasa.readthedocs.io/en/stable/discover.html",
+                  "title": "python-kasa: discovery (UDP 9999)",
+                  "date": "2026-11-23"
+                }
+              ]
+            }
+          ]
+        },
+        "note": "Tapo cameras may also answer the Kasa probe; the Tapo and Kasa evidence then ties and the device goes to D unless the model text says Tapo."
+      }
+    },
+    "xiongmai": {
+      "name": "XiongMai (XMEye)",
+      "aliases": [
+        "xiongmai",
+        "xmeye",
+        "雄迈"
+      ],
+      "matchMode": "substring",
+      "factory": {
+        "accounts": [],
+        "activation": {
+          "required": "unknown",
+          "status": "candidate",
+          "note": "XiongMai units usually ship with an empty admin password; no vendor document read."
+        },
+        "lock": {
+          "maxAttempts": null,
+          "lockMinutes": null,
+          "status": "candidate",
+          "note": "Unknown; the backend uses its conservative default."
+        },
+        "factoryIps": [
+          "192.168.1.10"
+        ],
+        "factoryIpEvidence": {
+          "192.168.1.10": {
+            "status": "candidate",
+            "evidence": [
+              {
+                "type": "mirror-doc",
+                "url": "https://www.techage.com/blogs/news/what-is-default-user-name-and-password-for-camera-kit",
+                "title": "TechAge: default username, password and IP address for IP cameras (found by search on 2026-11-23, page not opened)",
+                "date": "2026-11-23"
+              }
+            ]
+          }
+        }
+      },
+      "identity": {
+        "family": "xiongmai",
+        "access": [
+          {
+            "via": "bridge:dvrip",
+            "status": "candidate",
+            "evidence": [
+              {
+                "type": "mirror-doc",
+                "url": "https://pkg.go.dev/github.com/AlexxIT/go2rtc/internal/dvrip",
+                "title": "go2rtc: DVRIP source (UDP 34569 discovery)",
+                "date": "2026-11-23"
+              }
+            ],
+            "note": "Reached through h2z-bridge (dvrip); not verified on a real device."
+          }
+        ],
+        "factoryState": {
+          "kind": "unknown",
+          "status": "candidate",
+          "note": "No read-only factory-state check known for XiongMai."
+        },
+        "oui": {
+          "values": [],
+          "status": "candidate",
+          "note": "No XiongMai prefix found in the IEEE registry snapshot (white-label makers use many vendors)."
+        },
+        "fingerprints": {
+          "rules": [
+            {
+              "id": "xm-dvrip",
+              "signal": "probe",
+              "op": "present",
+              "value": "xiongmai-dvrip",
+              "status": "candidate",
+              "evidence": [
+                {
+                  "type": "mirror-doc",
+                  "url": "https://pkg.go.dev/github.com/AlexxIT/go2rtc/internal/dvrip",
+                  "title": "go2rtc: DVRIP source (UDP 34569 discovery)",
+                  "date": "2026-11-23"
+                }
+              ]
+            },
+            {
+              "id": "xm-port",
+              "signal": "port",
+              "op": "present",
+              "value": 34567,
+              "status": "candidate",
+              "note": "XiongMai TCP port (PLAN-2026-11-23 section 2.2 port list); not checked against a vendor document."
+            }
+          ]
+        }
+      }
+    },
+    "reolink": {
+      "aliases": [
+        "reolink"
+      ],
+      "factory": {
+        "accounts": [],
+        "activation": {
+          "required": "unknown",
+          "status": "candidate",
+          "note": "No Reolink document read on first-access behaviour."
+        },
+        "lock": {
+          "maxAttempts": null,
+          "lockMinutes": null,
+          "status": "candidate",
+          "note": "Unknown; the backend uses its conservative default."
+        },
+        "factoryIps": [],
+        "factoryIpEvidence": {}
+      },
+      "identity": {
+        "family": "reolink",
+        "access": [
+          {
+            "via": "rtsp",
+            "status": "documented",
+            "evidence": [
+              {
+                "type": "vendor-doc",
+                "url": "https://support.reolink.com/articles/900000630706-Introduction-to-RTSP/",
+                "title": "Reolink: introduction to RTSP",
+                "date": "2026-11-23"
+              }
+            ]
+          }
+        ],
+        "factoryState": {
+          "kind": "unknown",
+          "status": "candidate",
+          "note": "No read-only factory-state check known for Reolink."
+        },
+        "oui": {
+          "values": [
+            "EC71DB"
+          ],
+          "status": "documented",
+          "evidence": [
+            {
+              "type": "registry",
+              "url": "https://standards-oui.ieee.org/oui/oui.csv",
+              "title": "IEEE MA-L (OUI) registry; prefixes read from the nmap-mac-prefixes snapshot d058258 of that registry",
+              "date": "2026-11-23"
+            }
+          ]
+        },
+        "fingerprints": {
+          "rules": [
+            {
+              "id": "rl-udp2000",
+              "signal": "probe",
+              "op": "present",
+              "value": "reolink",
+              "status": "candidate",
+              "evidence": [
+                {
+                  "type": "mirror-doc",
+                  "url": "https://community.reolink.com/topic/825/turn-off-udp-broadcast",
+                  "title": "Reolink community: UDP broadcast 2000 / 3000",
+                  "date": "2026-11-23"
+                }
+              ]
+            },
+            {
+              "id": "rl-port",
+              "signal": "port",
+              "op": "present",
+              "value": 9000,
+              "status": "candidate",
+              "note": "Reolink TCP port (PLAN-2026-11-23 section 2.2 port list); not checked against a vendor document."
+            }
+          ]
+        }
       }
     }
   },

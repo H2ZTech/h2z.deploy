@@ -4,7 +4,9 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
-import { LIB_DIR, ARTIFACT, loadRaw, validateRaw, mergeLibrary, toArtifact, buildArtifactText, validateArtifact, checkCameraLibrary, renderPath, SAFE_PATH, modelPatternProblem, MODEL_PATTERNS_MAX } from './camera-library/library.mjs';
+import { LIB_DIR, ARTIFACT, loadRaw, validateRaw, mergeLibrary, toArtifact, buildArtifactText, validateArtifact, checkCameraLibrary, renderPath, SAFE_PATH, modelPatternProblem, MODEL_PATTERNS_MAX, contractDrift, FP_SIGNALS } from './camera-library/library.mjs';
+import { mkdtempSync, mkdirSync, writeFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
 
 /** 库化之前 h2z.backend rtsp-probe.RTSP_CANDIDATES 的 8 对，逐字 */
 const LEGACY_SWEEP = [
@@ -354,4 +356,128 @@ test('factory：产物自身的结构检查也拦坏数据', () => {
   assert.ok(has(mk((f) => (f.lock.maxAttempts = -1)), /factory/));
   assert.ok(has(mk((f) => (f.activation.required = 'x')), /factory/));
   assert.ok(has(mk((f) => (f.factoryIps = ['nope'])), /factory/));
+});
+
+// ---------------------------------------------------------------------------------------------------
+// 2026-11-23 (P2.10): family / access / factoryState / oui / fingerprints, the contract gate, evidence honesty
+// ---------------------------------------------------------------------------------------------------
+const FAMILIES = ['hikvision', 'dahua', 'uniview', 'tvt', 'axis', 'hanwha', 'bosch', 'tapo', 'kasa', 'xiongmai', 'reolink'];
+const vendorArt = (id) => artifact().vendors.find((v) => v.id === id);
+const curatedOf = (r, id) => r.curated.vendors[id];
+
+test('identity: the eleven families carry family / factory state / oui / fingerprints / factoryIps in the artifact', () => {
+  for (const id of FAMILIES) {
+    const v = vendorArt(id);
+    assert.ok(v, id);
+    assert.equal(v.family, id, id);
+    assert.ok(v.factoryState && ['probe-field', 'http-signal', 'unknown', 'none'].includes(v.factoryState.kind), id);
+    assert.ok(v.oui && Array.isArray(v.oui.values), id);
+    assert.ok(v.fingerprints && Array.isArray(v.fingerprints.rules), id);
+    assert.ok(v.factory && Array.isArray(v.factory.factoryIps), id);
+  }
+  assert.equal(vendorArt('wisenet').family, 'hanwha', 'Wisenet is the Hanwha family');
+});
+
+test('identity: access is an ordered list of rtsp / bridge:<protocol> with a grade per entry', () => {
+  const want = { hikvision: ['rtsp'], dahua: ['rtsp'], uniview: ['rtsp'], tvt: ['rtsp'], axis: ['rtsp'], hanwha: ['rtsp'], bosch: ['rtsp'], tapo: ['rtsp', 'bridge:tapo'], kasa: ['bridge:kasa'], xiongmai: ['bridge:dvrip'], reolink: ['rtsp'] };
+  for (const [id, access] of Object.entries(want)) {
+    const v = vendorArt(id);
+    assert.deepEqual(v.access, access, id);
+    assert.equal(v.accessStatus.length, access.length, id);
+  }
+  // every bridge protocol named by the library exists in the bridge contract snapshot
+  const protocols = loadRaw().contracts.bridge.protocols;
+  for (const v of artifact().vendors) for (const a of v.access || []) if (a.startsWith('bridge:')) assert.ok(protocols.includes(a.slice(7)), a);
+});
+
+test('identity: evidence levels are honest (nothing is verified without a real-device record)', () => {
+  const r = raw();
+  const hik = curatedOf(r, 'hikvision').identity;
+  assert.equal(hik.factoryState.status, 'verified');
+  assert.ok(hik.factoryState.evidence.some((e) => e.type === 'device'));
+  assert.equal(hik.access[0].status, 'documented', 'RTSP of Hikvision rests on vendor documents here, not on a device record in the library');
+  for (const id of FAMILIES) {
+    const idn = curatedOf(r, id).identity;
+    const groups = [...(idn.access || []), idn.factoryState, idn.oui, ...(idn.fingerprints?.rules || [])].filter(Boolean);
+    for (const g of groups) {
+      if (g.status === 'verified') assert.ok(g.evidence.some((e) => e.type === 'device'), `${id}: verified without a device record`);
+      if (g.status === 'documented') assert.ok(g.evidence.some((e) => e.type === 'vendor-doc' || e.type === 'registry'), `${id}: documented without a vendor document or registry`);
+    }
+  }
+  // things that were not found stay unknown / empty instead of being invented
+  assert.equal(vendorArt('tvt').factoryState.kind, 'unknown');
+  assert.deepEqual(vendorArt('tvt').factory.factoryIps, []);
+  assert.deepEqual(vendorArt('tapo').oui.values, [], 'TP-Link prefixes are shared by routers');
+  assert.equal(vendorArt('tapo').factoryState.status, 'candidate');
+});
+
+test('identity: factoryIps of each family and the grade of every address', () => {
+  const ips = (id) => vendorArt(id).factory.factoryIps;
+  assert.deepEqual(ips('hikvision'), ['192.168.1.64', '192.0.0.64']);
+  assert.deepEqual(ips('dahua'), ['192.168.1.108']);
+  assert.deepEqual(ips('uniview'), ['192.168.1.13']);
+  assert.deepEqual(ips('axis'), ['192.168.0.90']);
+  assert.deepEqual(ips('hanwha'), ['192.168.1.100']);
+  assert.deepEqual(ips('bosch'), ['192.168.0.1']);
+  assert.deepEqual(ips('xiongmai'), ['192.168.1.10']);
+  for (const id of ['tapo', 'kasa', 'reolink', 'tvt']) assert.deepEqual(ips(id), [], `${id} gets its address by DHCP or none was found`);
+  assert.equal(vendorArt('hikvision').factory.factoryIpStatus['192.168.1.64'], 'verified');
+  assert.equal(vendorArt('hikvision').factory.factoryIpStatus['192.0.0.64'], 'candidate');
+  assert.equal(vendorArt('axis').factory.factoryIpStatus['192.168.0.90'], 'documented');
+  assert.equal(vendorArt('hanwha').factory.factoryIpStatus['192.168.1.100'], 'documented');
+  assert.equal(vendorArt('dahua').factory.factoryIpStatus['192.168.1.108'], 'candidate');
+});
+
+test('identity gate: a bridge protocol that h2z.bridge does not have, or an unknown activator driver, stops the build', () => {
+  assert.ok(has(problemsOf((r) => (curatedOf(r, 'tapo').identity.access[1].via = 'bridge:nosuch')), /protocols\.json 里没有协议 nosuch/));
+  assert.ok(has(problemsOf((r) => (curatedOf(r, 'axis').identity.activationDriver = 'axis-nosuch')), /activationDriver/));
+  assert.ok(has(problemsOf((r) => (curatedOf(r, 'tapo').identity.access[0].via = 'ftp')), /rtsp 或 bridge/));
+  assert.ok(has(problemsOf((r) => curatedOf(r, 'tapo').identity.access.push({ via: 'rtsp', status: 'candidate', note: 'duplicate entry of rtsp' })), /重复/));
+  assert.ok(has(problemsOf((r) => (r.contracts.bridge.protocols = [])), /contracts\.json/));
+  assert.ok(has(problemsOf((r) => delete r.contracts), /contracts\.json/));
+});
+
+test('identity gate: evidence rules are the same as for stream paths', () => {
+  assert.ok(has(problemsOf((r) => (curatedOf(r, 'hikvision').identity.factoryState.evidence = [{ type: 'mirror-doc', url: 'https://example.com/x', date: '2026-11-23' }])), /verified 必须有真机/));
+  assert.ok(has(problemsOf((r) => (curatedOf(r, 'hanwha').identity.access[0].evidence = [{ type: 'mirror-doc', url: 'https://example.com/x', date: '2026-11-23' }])), /documented 必须有厂家文档/));
+  assert.ok(has(problemsOf((r) => (curatedOf(r, 'bosch').identity.access[0].note = 'short')), /note 里写明依据/));
+  assert.ok(has(problemsOf((r) => (curatedOf(r, 'dahua').factory.factoryIpEvidence = {})), /缺少 192\.168\.1\.108 的证据/));
+  assert.ok(has(problemsOf((r) => (curatedOf(r, 'axis').factory.factoryIpEvidence['10.0.0.1'] = { status: 'candidate', note: 'not a factory address' })), /不在 factoryIps/));
+});
+
+test('identity gate: fingerprints are plain comparisons over known signals (no regular expressions in the library)', () => {
+  const rule = (extra) => ({ id: 'x-rule', status: 'candidate', note: 'made up for the gate test', ...extra });
+  const add = (extra) => (r) => curatedOf(r, 'axis').identity.fingerprints.rules.push(rule(extra));
+  assert.deepEqual(problemsOf(add({ signal: 'http.server', op: 'contains', value: 'axis' })), []);
+  assert.ok(has(problemsOf(add({ signal: 'http.server', op: 'regex', value: '^a.*' })), /op 不合法/));
+  assert.ok(has(problemsOf(add({ signal: 'http.body', op: 'contains', value: 'axis' })), /signal 不合法/));
+  assert.ok(has(problemsOf(add({ signal: 'http.server', op: 'contains', value: 'AXIS' })), /小写/));
+  assert.ok(has(problemsOf(add({ signal: 'port', op: 'present', value: '554' })), /port 特征/));
+  assert.ok(has(problemsOf(add({ signal: 'probe', op: 'contains', value: 'sadp' })), /probe 特征/));
+  assert.ok(FP_SIGNALS.includes('http.axisSetup'));
+  assert.ok(has(problemsOf((r) => (curatedOf(r, 'hikvision').identity.oui.values[0] = 'c056e3')), /OUI|6 位/));
+});
+
+test('identity: every probe named by a fingerprint exists in scripts/camera-discovery.mjs (the signal names are the discovery output)', async () => {
+  const { PROBES } = await import('./camera-discovery.mjs');
+  const ids = new Set(PROBES.map((p) => p.id));
+  for (const v of artifact().vendors) for (const r of v.fingerprints?.rules || []) if (r.signal === 'probe') assert.ok(ids.has(r.value), `${v.id}: ${r.value}`);
+});
+
+test('contract drift: the snapshot is compared with the sibling h2z.bridge / h2z.activator checkouts when they exist', () => {
+  const r = raw();
+  const dir = mkdtempSync(resolve(tmpdir(), 'h2z-contracts-'));
+  mkdirSync(resolve(dir, 'bridge'));
+  mkdirSync(resolve(dir, 'activator/src/drivers'), { recursive: true });
+  writeFileSync(resolve(dir, 'bridge/protocols.json'), JSON.stringify({ protocols: r.contracts.bridge.protocols.map((id) => ({ id })) }));
+  writeFileSync(resolve(dir, 'activator/src/drivers/x.mjs'), r.contracts.activator.drivers.map((id) => `{ id: '${id}' }`).join('\n'));
+  const where = { bridgeDir: resolve(dir, 'bridge'), activatorDir: resolve(dir, 'activator') };
+  assert.deepEqual(contractDrift(r, where), []);
+  writeFileSync(resolve(dir, 'bridge/protocols.json'), JSON.stringify({ protocols: [...r.contracts.bridge.protocols, 'newproto'].filter((x) => x !== 'homekit').map((id) => ({ id })) }));
+  const drift = contractDrift(r, where);
+  assert.ok(has(drift, /缺少 h2z\.bridge 的协议 newproto/));
+  assert.ok(has(drift, /homekit 已不在/));
+  writeFileSync(resolve(dir, 'activator/src/drivers/x.mjs'), "{ id: 'hikvision-sadp' }");
+  assert.ok(has(contractDrift(r, where), /驱动 axis-vapix 在 h2z\.activator/));
+  assert.deepEqual(contractDrift(r, { bridgeDir: resolve(dir, 'none'), activatorDir: resolve(dir, 'none') }), [], 'nothing to compare with = no problem');
 });
