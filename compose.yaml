@@ -263,9 +263,9 @@ services:
       H2Z_MUSE_RPM: ${MUSE_RPM:-}
       H2Z_MUSE_MAX_CONCURRENT: ${MUSE_MAX_CONCURRENT:-}
       # Bump when host-agent.mjs gains an endpoint: the script is a bind mount, so a changed value here is what
-      # makes `docker compose up -d` recreate the container with the new script (l2-scan: layer-2 neighbour scan, camera-discover: ONVIF WS-Discovery + Hikvision SADP,
+      # makes `docker compose up -d` recreate the container with the new script (l2-scan: layer-2 neighbour scan, camera-discover: ONVIF WS-Discovery + Hikvision SADP, camera-discovery: scripts/camera-discovery.mjs mounted (probe registry, exhaustive discovery),
       # vlans: 802.1Q sub-interfaces on the LAN port, multiport: several wired ports, system: device info / time / power / name, upgrade: H2Z OS full-package upgrade, kiosk: installs the local-display scripts after git pull).
-      H2Z_AGENT_FEATURES: l2-scan,vlans,metrics,camera-discover,multiport,system,upgrade,online-update,kiosk,tailscale-enable,upgrade-reset,cloudflare-tunnel,meta-muse,git-update,link
+      H2Z_AGENT_FEATURES: l2-scan,vlans,metrics,camera-discover,multiport,system,upgrade,online-update,kiosk,tailscale-enable,upgrade-reset,cloudflare-tunnel,meta-muse,git-update,link,camera-discovery
       # iroh edge (phone app pairing): host-agent summarises LAN addresses + edge-link status (GET /v1/link); dir = edge-link data volume
       H2Z_LINK_DIR: /edge-link
       H2Z_LINK_HTTP_BIND: ${HTTP_BIND:-127.0.0.1}
@@ -275,6 +275,8 @@ services:
       H2Z_LINK_LAN_AUTH: ${H2Z_LAN_AUTH:-on}
     volumes:
       - ./scripts/host-agent.mjs:/agent/host-agent.mjs:ro
+      # camera discovery module imported by host-agent.mjs (same file in h2z.security and h2z.deploy; not mounted = built-in ONVIF + SADP search only)
+      - ./scripts/camera-discovery.mjs:/agent/camera-discovery.mjs:ro
       - ./scripts/online-update.mjs:/agent/online-update.mjs:ro
       - ./scripts/cf-tunnel.mjs:/agent/cf-tunnel.mjs:ro
       - ./scripts/muse.mjs:/agent/muse.mjs:ro

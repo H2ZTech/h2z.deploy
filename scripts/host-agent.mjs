@@ -31,6 +31,9 @@
 //   POST /v1/l2-scan {cidrs[]}            layer-2 neighbour scan of on-link networks (IP ↔ MAC, read-only)
 //   POST /v1/cameras/discover {seconds?}  camera discovery on the attached networks: ONVIF WS-Discovery + Hikvision
 //                                         SADP multicast (read-only, a few seconds, never the hotspot network)
+//                                         with scripts/camera-discovery.mjs mounted: exhaustive discovery (probe registry: standard and
+//                                         vendor protocols, unicast sweep, passive listening, layer 2), options {exclude?, extraCidrs?,
+//                                         factoryIps?, channels?, ports?}; adds candidates / unaddressed / probes, see h2z.security docs/DISCOVERY-COVERAGE.md
 //   POST /v1/cameras/activate {mac, password, method?, network?}  activate an unactivated camera (method: 'sadp', Hikvision
 //                                         only so far; candidate recipe, see h2z.security/docs/HIKVISION-SADP-ACTIVATE-2026-11-21.md
 //                                         — exchangecode/activate crypto is inferred from a packet capture, not yet verified).
@@ -65,6 +68,9 @@ const PS = await import('./pack-source.mjs').catch(() => null);
 const CF = await import('./cf-tunnel.mjs').catch(() => null);
 // Meta Muse 连接器（C 版 docker2/compose.yaml 才挂 muse.mjs；B 版没有这个文件：导入失败 = 没有这个功能，/v1/muse* 回 404）
 const MUSE = await import('./muse.mjs').catch(() => null);
+// Camera discovery (scripts/camera-discovery.mjs, mounted next to this file by both compose files; the same file in h2z.security and
+// h2z.deploy). Import failure = the file is not mounted yet: /v1/cameras/discover falls back to the built-in ONVIF + SADP search below.
+const CD = await import('./camera-discovery.mjs').catch(() => null);
 const MUSE_ASK_MAX_BODY = 24 << 20; // /v1/muse/ask 带抓图（base64），请求体上限放宽到 24 MB；其他路由仍是 64 KB
 const repoOfImg = OU?.repoOf || ((r) => r);
 const { OnlineError = class extends Error {}, verifySigned, parseIndex, parseOnlineManifest, pullRef, restartsRecorder, ghcrReleaseFetch, backupsToDelete } = OU || {};
@@ -2342,6 +2348,8 @@ export function createAgent(opts = {}) {
   });
   const netIfs = o.networkInterfaces || (() => os.networkInterfaces());
   const newUuid = o.uuid || (() => randomUUID());
+  // exhaustive discovery (probe registry, channels A-D). o.multicast (tests) keeps the old ONVIF + SADP exchange as the only transport.
+  const cameraDiscovery = CD ? CD.createCameraDiscovery({ netIfs, host, readArp, sleep, now, uuid: newUuid, io: o.discoveryIo, legacyMulticast: o.multicast }) : null;
   async function discoverCameras(body) {
     if (discovering) throw new AgentError('E_CONFLICT', '摄像头搜索正在进行，请稍后再试', 409);
     const seconds = body?.seconds === undefined || body?.seconds === null || body?.seconds === '' ? 3 : Number(body.seconds);
@@ -2355,6 +2363,15 @@ export function createAgent(opts = {}) {
       const excluded = [s?.apNetwork || '192.168.234.0/24', ...extra];
       const ifaces = discoveryInterfaces(netIfs(), { excluded });
       if (!ifaces.length) return { discoveredAt: new Date(now()).toISOString(), durationMs: 0, interfaces: [], devices: [], note: '没有可用的网口（只有回环 / 虚拟口 / 维护热点）' };
+      if (cameraDiscovery) {
+        // options beyond {seconds, exclude}: extraCidrs, factoryIps, channels, ports (validated there); the response keeps every field below and adds more
+        try {
+          return await cameraDiscovery.discover({ ...body, seconds }, { excluded, ifaces });
+        } catch (e) {
+          if (e?.code === 'E_PARAM') throw bad(e.message);
+          throw e;
+        }
+      }
       const replies = await multicast({
         ifaces,
         wsdProbes: [wsDiscoveryProbe(newUuid()), wsDiscoveryProbe(newUuid(), 'tds:Device')],
