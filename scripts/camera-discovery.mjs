@@ -1671,11 +1671,13 @@ export function createCameraDiscovery(o = {}) {
         }
       }
       const sendAll = () => senders.forEach((fn) => fn());
-      const first = Math.min(1000, seconds * 400);
+      const first = Math.min(1000, seconds * 300);
       sendAll();
       await sleep(first);
-      sendAll(); // UDP may be lost: everything is sent twice
-      await sleep(Math.max(0, seconds * 1000 - first));
+      sendAll(); // UDP may be lost (a camera busy with a stream can miss one round): everything is sent three times
+      await sleep(first);
+      sendAll();
+      await sleep(Math.max(0, seconds * 1000 - 2 * first));
       for (const entry of entries) {
         if (!entry.enrich) continue;
         await entry.enrich(observations.filter((x) => x.probe === entry.id), { io, deadline, now }).catch(() => null);

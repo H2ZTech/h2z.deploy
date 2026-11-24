@@ -12,7 +12,7 @@ import * as HA from './host-agent.mjs';
 
 // Both repositories must carry the same bytes. When camera-discovery.mjs changes, copy it to the other
 // repository and update this constant in BOTH copies of this test.
-const PINNED_SHA256 = '07eb805ef7c1c5b07451c98753d398a5a26d940bedff1fefdf7ee861caaea64c';
+const PINNED_SHA256 = '1634ab1866b6bddfd5977ec1e8d2883a0fe267c126ce5d2e0d5844a3866964c4';
 
 test('camera-discovery.mjs is the pinned copy (h2z.security and h2z.deploy must stay byte-identical)', () => {
   const digest = createHash('sha256').update(readFileSync(new URL('./camera-discovery.mjs', import.meta.url))).digest('hex');
@@ -604,7 +604,7 @@ test('engine, channel A: every implemented probe is sent on the wired interface 
   assert.ok(net.sockets.every((s) => s.members.every((m) => m.endsWith('@172.21.20.250'))));
   const ports = new Set(sent.map((x) => x.port));
   for (const p of [3702, 37020, 5353, 1900, 3956, 37810, 7701, 1757, 10000, 2380, 69, 10001, 34569, 9999, 20002, 2000, 32108, 8600]) assert.ok(ports.has(p), `port ${p} probed`);
-  assert.equal(sent.filter((x) => x.port === 3702 && x.address === '239.255.255.250').length, 6, 'three WS-Discovery probes, sent twice');
+  assert.equal(sent.filter((x) => x.port === 3702 && x.address === '239.255.255.250').length, 9, 'three WS-Discovery probes, sent three times');
   // placeholders are never sent
   assert.ok(![3600, 2007, 10669, 5050, 20015, 21112, 3705].some((p) => ports.has(p)));
 
@@ -625,12 +625,12 @@ test('engine, channel A: every implemented probe is sent on the wired interface 
   assert.deepEqual(byIp['172.21.20.77'].signals.mdns.instances, [{ type: '_vendorcam._tcp.local', name: 'Cam 77', port: 8554, host: 'cam77.local' }]);
   // summary
   const sum = Object.fromEntries(r.probes.map((p) => [p.id, p]));
-  assert.equal(sum['dahua-dhdiscover'].replies, 2, 'one device reply per send round; hotspot, own and oversized replies are not counted');
+  assert.equal(sum['dahua-dhdiscover'].replies, 3, 'one device reply per send round (three rounds); hotspot, own and oversized replies are not counted');
   assert.ok(sum['dahua-dhdiscover'].sent >= 2);
   assert.equal(sum.panasonic.implemented, false);
   assert.equal(sum.panasonic.sent, 0);
   assert.equal(sum['tcp-ports'].skipped, 'channel not requested');
-  assert.equal(r.dropped, 2, 'oversized replies are counted, not parsed');
+  assert.equal(r.dropped, 3, 'oversized replies are counted, not parsed');
   assert.deepEqual(r.channels, ['A']);
   assert.ok(r.discoveredAt && r.durationMs >= 0);
   assert.deepEqual(r.interfaces, [{ iface: 'enp1s0', ip: '172.21.20.250', cidr: '172.21.20.250/24' }]);
@@ -651,7 +651,7 @@ test('engine: a throwing parser, a failing bind and a reply flood never break th
   });
   const r = await cd.discover({ seconds: 1, channels: ['A'] });
   const sum = Object.fromEntries(r.probes.map((p) => [p.id, p]));
-  assert.equal(r.parseErrors, 4, 'two sockets, two send rounds: every reply reached the throwing parser and was counted');
+  assert.equal(r.parseErrors, 6, 'two sockets, three send rounds: every reply reached the throwing parser and was counted');
   assert.equal(sum.flooded.replies, CD.LIMITS.maxRepliesPerProbe, 'replies per probe are capped');
   assert.ok(r.dropped >= 200);
   assert.match(sum.bound.error, /EADDRINUSE/);
