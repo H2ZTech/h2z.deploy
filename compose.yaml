@@ -181,6 +181,12 @@ services:
       IOC_CAMERA_LIBRARY_FILE: /camera-library/library.json
       # 设备网页经板子代理（h2z.ioc docs/DEVICE-WEB-PROXY.md）：每个会话一个端口；空 = 关闭
       IOC_DEVICE_WEB_PORTS: ${DEVICE_WEB_PORTS:-18001-18016}
+      # Camera activation (h2z-activator) and protocol bridge (h2z-bridge): both are OPTIONAL dependencies. The backend probes
+      # GET /v1/capabilities at start and periodically; a missing or unhealthy module only turns that feature off
+      # (activation falls back to host-agent, bridged cameras wait for the bridge, direct cameras are unaffected).
+      # Never add activator / bridge to depends_on: the backend and the recorder must start without them.
+      IOC_ACTIVATOR_SOCKET: /run/h2z-activator/activator.sock
+      IOC_BRIDGE_URL: http://bridge:8600
     # 与 IOC 8096 同一个绑定：HTTP_BIND=0.0.0.0（现场内网直接开 IOC）时内网也能开设备网页；
     # 默认 127.0.0.1 时由 tailscale-entry.sh 把这段端口也经 Tailscale Serve 转出去
     ports:
@@ -198,6 +204,8 @@ services:
       - storage-ctl:/run/h2z-storage
       - /var/lib/h2z/watchdog:/run/h2z-watchdog:ro
       - host-agent:/run/h2z-host
+      # activator socket (read-only mount is enough to connect); the volume exists even when the activator is not running
+      - activator-run:/run/h2z-activator:ro
       - edge-link-data:/edge-link
       - ./runtime/recorder:/recorder-config
       # 整个目录只读挂（不是单个文件）：git pull 换文件后容器里立刻是新内容
@@ -535,6 +543,50 @@ services:
       timeout: 5s
       retries: 10
     mem_limit: 128m
+  # Camera activation (h2z-activator, P3.3a): sets the first password (and, where the protocol allows it, the network
+  # parameters) on factory-default cameras. Host network because the layer-2 drivers send multicast on the site LAN;
+  # unprivileged (uid 20002), no capabilities, no host mounts, read-only root. No TCP port: the backend reaches it only
+  # through the unix socket in the activator-run volume (socket 0660 20002:20001, directory 0750; group 20001 = backend).
+  # Stateless (jobs live in memory, the backend keeps the audit trail). Optional for the backend: see IOC_ACTIVATOR_SOCKET.
+  # Roll back this module alone: pin ACTIVATOR_IMAGE in .env to an immutable tag, then docker compose up -d activator.
+  activator:
+    image: ${ACTIVATOR_IMAGE:-ghcr.io/h2ztech/h2z-activator:latest}
+    restart: unless-stopped
+    network_mode: host
+    read_only: true
+    cap_drop: [ALL]
+    security_opt: ['no-new-privileges:true']
+    environment:
+      H2Z_ACTIVATOR_SOCKET: /run/h2z-activator/activator.sock
+      # Maintenance WiFi hotspot network: never sends or receives layer-2 probes there (same value as host-agent / backend).
+      H2Z_ACTIVATOR_EXCLUDED_NETWORKS: ${MAINT_AP_NETWORK:-192.168.234.0/24}
+    volumes:
+      - activator-run:/run/h2z-activator
+    logging:
+      driver: json-file
+      options: {max-size: '5m', max-file: '2'}
+    # One idle Node.js process; activation jobs are short. Lowest CPU weight: recording (recorder 4096, zlm 2048) always wins.
+    cpu_shares: 256
+    mem_limit: 96m
+  # Camera protocol bridge (h2z-bridge, P4.4a): turns cameras without usable RTSP (dvrip / tapo / kasa) and the generic
+  # RTSP / ONVIF / HTTP fallback into plain RTSP for ZLM. The service name must stay "bridge": ZLM pulls
+  # rtsp://bridge:8554/<id>_main|_sub and the backend calls http://bridge:8600 on the compose network. No published ports
+  # (the compose network is the trust boundary). Runs as uid 1000 without capabilities; needs a writable /dev/shm (Docker default).
+  # bridge-data holds the stream definitions and the encryption key: back it up with the rest; it is kept when the image is rolled back.
+  # Idle cost is close to zero (no camera connection while nobody pulls). Optional for the backend: see IOC_BRIDGE_URL.
+  # Roll back this module alone: pin BRIDGE_IMAGE in .env to an immutable tag, then docker compose up -d bridge.
+  bridge:
+    <<: *common
+    image: ${BRIDGE_IMAGE:-ghcr.io/h2ztech/h2z-bridge:latest}
+    cap_drop: [ALL]
+    security_opt: ['no-new-privileges:true']
+    environment:
+      H2Z_BRIDGE_PUBLIC_HOST: bridge
+    volumes:
+      - bridge-data:/data
+    # Relays without transcoding (no ffmpeg in the image). Below the default CPU weight: recorder 4096 and zlm 2048 stay ahead.
+    cpu_shares: 512
+    mem_limit: 256m
   yolo:
     <<: *common
     profiles: [vision]
@@ -766,6 +818,8 @@ volumes:
   storage-state: {}
   storage-ctl: {}
   host-agent: {}
+  activator-run: {}
+  bridge-data: {}
   edge-link-data: {}
   tailscale-state: {}
   tailscale-socket: {}

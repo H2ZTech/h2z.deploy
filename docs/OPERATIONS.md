@@ -46,6 +46,27 @@ sh scripts/update.sh      # 查空间 → git pull → 拉镜像 → 再查空�
 
 失败时先核对缺失接口、schema、token、模型和镜像架构，再决定回滚已验收版本。`docker compose down` 保留卷；不要使用 `down -v` 清除业务数据。
 
+### 摄像头模块（activator、bridge）：升级和单独回滚
+
+`activator`（摄像头激活，host 网络、只有 unix socket）和 `bridge`（协议桥接，compose 网络内 `http://bridge:8600` / `rtsp://bridge:8554`）是底座服务，随 `sh scripts/update.sh` 一起拉取和启动，不需要额外命令。两者对后端是**可选依赖**：后端的 `depends_on` 里没有它们，缺了或不健康时后端和录像照常运行（激活退回 host-agent，要走桥的摄像头等桥恢复，直连摄像头不受影响）。
+
+某个模块的新版本有问题时，只回滚它，别的服务不动：
+
+```bash
+cd /opt/h2z.security
+# 1) 在 .env 里把对应变量固定到上一个不可变标签（各仓库每次构建都推 :<yyyyMMdd-HHmm>-<sha7>）
+#    BRIDGE_IMAGE=ghcr.io/h2ztech/h2z-bridge:<yyyyMMdd-HHmm>-<sha7>
+#    ACTIVATOR_IMAGE=ghcr.io/h2ztech/h2z-activator:<yyyyMMdd-HHmm>-<sha7>
+# 2) 只重建这一个服务
+docker compose pull bridge && docker compose up -d bridge      # 或 activator
+docker compose ps bridge activator                             # 都应是 healthy
+```
+
+- 回滚 `bridge` 时 `bridge-data` 卷保留（流配置和加密凭据都在里面），桥接通道不丢；备份时把这个卷和其他数据卷一起备份。
+- `activator` 无状态，没有数据卷（`activator-run` 卷里只有运行时的 socket）。
+- 固定标签之后 `update.sh` 不会再动这个模块；问题修好后删掉 `.env` 里那一行（或改回 `:latest`），再 `sh scripts/update.sh`。
+- `update.sh` 最后一步是 `docker compose up -d --wait`：如果某个模块不健康，脚本以非 0 退出、不打印 `Update complete`，但其余服务已经是新版本并在运行。先按上面单独回滚该模块，再重跑 `update.sh`。
+
 日志限制为每容器 20MB ×3。`docker compose logs --tail 100 <服务>` 排查时注意上游日志可能含带凭据的摄像头 URL，分享前脱敏。AI 探索任务默认等待人工审批，超时失败；`H2Z_LOOP_DRY_RUN=0` 表示真实任务，不把样例探索当成实测。
 
 ## 摄像头库

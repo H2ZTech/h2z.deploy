@@ -36,6 +36,15 @@ env = env.split(/\r?\n/).map(line => {
 for (const [key, image] of Object.entries(runtimeImages)) {
   if (!updatedImageKeys.has(key)) env = `${env.trimEnd()}\n${key}=${image}\n`;
 }
+// Camera modules (activator, bridge): added once when .env predates them; an existing line is never touched
+// (a site may have pinned an immutable tag to roll a module back). compose.yaml carries the same defaults.
+const moduleImages = {
+  ACTIVATOR_IMAGE: 'ghcr.io/h2ztech/h2z-activator:latest',
+  BRIDGE_IMAGE: 'ghcr.io/h2ztech/h2z-bridge:latest',
+};
+for (const [key, image] of Object.entries(moduleImages)) {
+  if (!new RegExp(`^${key}=`, 'm').test(env)) env = `${env.trimEnd()}\n${key}=${image}\n`;
+}
 for (const k of ['POSTGRES_PASSWORD', 'MQTT_PASSWORD', 'EMQX_PASSWORD', 'EMQX_COOKIE', 'ZLM_SECRET', 'ZLM_HOOK_SECRET']) {
   env = env.replace(new RegExp(`^${k}=\\s*$`, 'm'), `${k}=${random()}`);
 }

@@ -134,6 +134,22 @@ sh scripts/update.sh --prune-old    # 空间不够时先清旧镜像
 空闲少于 10 GB（`MIN_FREE_GB`）会停下并列出空间占用。更新前按 `docs/OPERATIONS.md` 备份。
 安装盘设备也可以用整包升级（`.h2zup`）和扩展包（`.h2zpack`），见 `os/x86/README.md`。
 
+### 5.1 摄像头激活 / 协议桥接两个模块（activator、bridge，2026-11-23）
+
+`compose.yaml` 里多了两个常驻服务，新装和老机器都一样得到：
+
+| 服务 | 镜像变量（compose 里带默认值） | 做什么 | 怎么连 |
+|---|---|---|---|
+| `activator` | `ACTIVATOR_IMAGE`（`ghcr.io/h2ztech/h2z-activator:latest`） | 给出厂状态的摄像头设初始口令。host 网络（二层多播），不要特权、不挂主机目录 | 只有 unix socket（卷 `activator-run`，后端只读挂载），没有 TCP 端口 |
+| `bridge` | `BRIDGE_IMAGE`（`ghcr.io/h2ztech/h2z-bridge:latest`） | 把不出标准 RTSP 的摄像头和通用 RTSP / ONVIF / HTTP 回退转成 RTSP 给 ZLM | compose 网络内 `http://bridge:8600`、`rtsp://bridge:8554/...`，不发布端口；数据卷 `bridge-data` |
+
+- **已装机器**：照常 `sh scripts/update.sh`（或页面点升级）。`git pull` 拿到新 compose → `docker compose pull` 拉两个新镜像 → `up -d` 把它们起起来，不需要别的命令。老 `.env` 里没有这两个变量也没关系（compose 带默认值）；`scripts/init.sh` 重跑时会补上这两行，已有的值不动。
+- **对后端是可选依赖**：后端只多了 `IOC_ACTIVATOR_SOCKET`、`IOC_BRIDGE_URL` 两个环境变量，`depends_on` 里没有它们；模块不在或不健康，后端和录像照常运行，只是激活 / 桥接功能不可用。
+- **arm64**：两个镜像都要有 arm64 版。`node scripts/check-images.mjs arm64` 现在除了 `.env` 里的 `*_IMAGE`，也检查 `.env` 没写、由 `compose.yaml` 默认值决定的镜像（输出里标 `compose default, not set in .env`），老 `.env` 的机器也查得到这两个。
+- **卸载**：`uninstall.sh --purge` 删掉本项目的全部命名卷（`docker compose down --volumes` + 按项目标签清扫），`bridge-data` 和 `activator-run` 包括在内；不带 `--purge` 时数据保留，桥接通道不丢。
+- **fnOS 包**：没有自己的镜像清单，启动器按 `docker compose config --images` 补拉缺的镜像，新服务自动带上。
+- 单独回滚一个模块见 `docs/OPERATIONS.md`「升级」一节；已装机器的升级演练（x86、arm64 各一次，**还没做**）见 h2z.security 仓库 `docs/UPGRADE-NEW-SERVICES-TEST.md`。
+
 ## 6. 常见问题
 
 | 现象 | 处理 |
