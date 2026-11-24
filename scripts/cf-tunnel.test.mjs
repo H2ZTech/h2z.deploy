@@ -364,3 +364,13 @@ test('没有 cf-tunnel 的部署（agent.tunnel = null）：路由回 404 E_NOT_
     server.close();
   }
 });
+
+test('2026-11-23 field test: the Windows command copied from Cloudflare is accepted whole, and a crash shows cloudflared\'s own line', async () => {
+  const { parseTunnelToken, classifyLogs } = await import('./cf-tunnel.mjs');
+  const tok = Buffer.from(JSON.stringify({ a: 'f'.repeat(32), t: '11111111-2222-4333-8444-555555555555', s: 'c2VjcmV0c2VjcmV0c2VjcmV0' })).toString('base64');
+  assert.equal(parseTunnelToken('cloudflared.exe service install ' + tok).tunnelId, '11111111-2222-4333-8444-555555555555');
+  const logs = ['2026-11-23T18:46:01Z INF Starting tunnel', '2026-11-23T18:46:02Z ERR Couldn\'t start tunnel error="bind: address already in use"', "h2z-os-cloudflared.service: Main process exited, code=exited, status=1/FAILURE", "h2z-os-cloudflared.service: Failed with result 'exit-code'."].join('\n');
+  const r = classifyLogs(logs);
+  assert.match(r.detail, /address already in use/);
+  assert.doesNotMatch(r.detail, /Failed with result/);
+});

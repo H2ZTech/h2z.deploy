@@ -105,7 +105,12 @@ export function parseHostname(input) {
 /** cloudflared 日志末尾 → 常见原因（给界面显示 + 建议） */
 export function classifyLogs(text) {
   const t = String(text || '');
-  const last = t.trim().split(/\r?\n/).filter(Boolean).slice(-1)[0] || '';
+  // The journal ends with systemd's own bookkeeping ("…service: Failed with result 'exit-code'", "Scheduled restart job…"),
+  // which says nothing about why. Show cloudflared's own last line instead (its last error line if there is one), so the
+  // page carries the real reason (2026-11-23 field test: the page only showed "Failed with result 'exit-code'").
+  const lines = t.trim().split(/\r?\n/).filter(Boolean);
+  const own = lines.filter((l) => !/\.service: |^(Started|Starting|Stopped|Stopping) |Scheduled restart job|^systemd\[/i.test(l));
+  const last = own.filter((l) => /\b(ERR|error|fatal|failed|panic)\b/i.test(l)).slice(-1)[0] || own.slice(-1)[0] || lines.slice(-1)[0] || '';
   const tail = last.replace(/eyJ[A-Za-z0-9_\-+/=]{16,}/g, '***').slice(0, 200);
   if (/unauthorized|invalid tunnel|tunnel not found|failed to unmarshal|decode.*token|token.*(invalid|not valid)|no tunnel|authentication/i.test(t)) {
     return { code: 'E_TUNNEL_TOKEN', message: '隧道令牌无效，或这条隧道已被删除 / 令牌已被轮换：请到 Cloudflare 控制台重新复制令牌', detail: tail };
@@ -118,7 +123,7 @@ export function classifyLogs(text) {
 
 /** Cloudflare 边缘对一个网址的应答 → 提示（只在连接器已连上后用） */
 export function describeUrlStatus(status) {
-  if (!status) return { ok: false, note: '从设备上访问对外网址没有得到应答（可能是域名还没生效，或设备自己的 DNS / 网络有限制）' };
+  if (!status) return { ok: false, note: '从设备上访问对外网址没有得到应答：如果还没有在 Cloudflare 里把这个域名加成这条隧道的「公共主机名」，现在去加（指向 http://localhost:8096）；已经加了的话，可能是域名还没生效，或设备自己的 DNS / 网络有限制' };
   if (status === 530 || status === 1033) return { ok: false, note: 'Cloudflare 说这条隧道没有连上（530）：稍等几秒，或检查控制台里该域名是否指向这条隧道' };
   if ([502, 504, 521, 522, 523, 524].includes(status)) return { ok: true, note: '隧道已通，但本机服务没有应答：检查 Cloudflare 控制台里该域名指向的本机服务地址和协议' };
   if (status >= 500) return { ok: false, note: `对外网址返回 ${status}` };

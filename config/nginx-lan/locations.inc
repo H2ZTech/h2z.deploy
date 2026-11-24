@@ -6,7 +6,9 @@ location = /ioc { auth_request off; return 302 /ioc/; }
 # 品牌名 / 公司名（OEM 隐藏配置，docs/BRANDING-OEM.md）：init / 开机按 .env 的 H2Z_BRAND_NAME / H2Z_COMPANY_NAME 生成的静态文件
 # （docker2/runtime/brand.json 挂到 /usr/share/nginx/html/brand.json），只含 brandName / companyName 两项。登录页也要显示品牌，所以免登录；
 # no-cache = 每次带条件请求重新验证，改了配置刷新页面就生效，不会被长缓存卡住。
-location = /brand.json { auth_request off; default_type application/json; add_header Cache-Control "no-cache"; try_files /brand.json =404; }
+location = /brand.json { auth_request off; default_type application/json; add_header Cache-Control "no-cache"; try_files /brand.json @brand_default; }
+# 没有生成 brand.json 的部署（B 线没有挂这个文件）：回一个空对象 = 用默认品牌，不要让每个页面都报一条 404
+location @brand_default { auth_request off; default_type application/json; add_header Cache-Control "no-cache"; return 200 '{}'; }
 # 页面壳和静态资源：要先打得开才能显示登录页。前端缓存同 config/nginx.conf（index.html 不缓存，带哈希的 assets 长缓存）
 location /ioc/assets/ { auth_request off; try_files $uri =404; add_header Cache-Control "public, max-age=31536000, immutable"; }
 location = /ioc/index.html { auth_request off; add_header Cache-Control "no-store"; }

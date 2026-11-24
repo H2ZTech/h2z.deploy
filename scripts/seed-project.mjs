@@ -21,7 +21,13 @@ if(/^IOC_AUTO_PROJECT=1\s*$/m.test(readFileSync('.env','utf8'))) {
 }
 const list=await api('GET','/projects');
 const projects=Array.isArray(list)?list:list.projects;
-if(!projects.some(p=>p.projectId==='security')) await api('POST','/projects',{projectId:'security',name:'H2Z 安防',mode:'warehouse'});
+// Only when there is no project at all: one default project named after this machine, and its id is the same as its name
+// (letters, digits, "_" and "-"; anything else becomes "-"), the same rule the backend uses for the automatic device project.
+const { hostname } = await import('node:os');
+const name=hostname()||'H2Z';
+const id=name.trim().replace(/[^A-Za-z0-9_-]+/g,'-').replace(/^-+|-+$/g,'').slice(0,40)||'local';
+if(!projects.length) await api('POST','/projects',{projectId:id,name,mode:'warehouse'});
 const settings=await api('GET','/settings');
-if(!settings.currentProject) await api('PUT','/settings/current',{projectId:'security'});
-console.log('Empty security warehouse project exists. Existing current project preserved; no camera, model or inference events seeded.');
+const first=projects.length?projects[0].projectId:id;
+if(!settings.currentProject) await api('PUT','/settings/current',{projectId:first});
+console.log('Default project: '+first+'. An existing current project is preserved; no camera, model or inference events seeded.');
